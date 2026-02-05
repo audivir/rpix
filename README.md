@@ -11,7 +11,7 @@ A image viewer for the Kitty Terminal Graphics Protocol.
 Ensure you have Rust installed.
 
 ```bash
-git clone [https://github.com/audivir/rpix](https://github.com/audivir/rpix)
+git clone https://github.com/audivir/rpix
 cd rpix
 cargo build --release
 cp target/release/rpix ~/.local/bin/

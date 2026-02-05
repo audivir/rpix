@@ -17,3 +17,8 @@ atty = "0.2"
 
 [dev-dependencies]
 rstest = "0.26.1"
+
+[profile.release]
+codegen-units = 1
+debug = false
+lto = "fat"

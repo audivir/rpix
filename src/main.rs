@@ -78,6 +78,7 @@ struct Config {
         long,
         conflicts_with = "width",
         conflicts_with = "height",
+        conflicts_with = "fullheight",
         conflicts_with = "resize",
         conflicts_with = "noresize"
     )]
@@ -89,6 +90,7 @@ struct Config {
         long,
         conflicts_with = "width",
         conflicts_with = "height",
+        conflicts_with = "fullwidth",
         conflicts_with = "resize",
         conflicts_with = "noresize"
     )]

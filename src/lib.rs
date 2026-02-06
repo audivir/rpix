@@ -152,6 +152,45 @@ pub fn calculate_dimensions(
     (width.round() as u32, height.round() as u32)
 }
 
+// Parse a 1-indexed pages string to 0-indexed vector
+pub fn parse_pages(pages: &str) -> Result<Vec<u16>> {
+    let mut result = Vec::new();
+    for part in pages.split(',') {
+        let part = part.trim();
+        if part.contains('-') {
+            let mut parts = part.split('-');
+            let start = parts
+                .next()
+                .context("Invalid page range")?
+                .trim()
+                .parse::<u16>()?;
+            let end = parts
+                .next()
+                .context("Invalid page range")?
+                .trim()
+                .parse::<u16>()?;
+            if start < 1 || end <= start {
+                return Err(anyhow::anyhow!(
+                    "Page range must start >= 1 and end > start"
+                ));
+            }
+            for i in start..=end {
+                result.push(i - 1);
+            }
+        } else {
+            let index = part.parse::<u16>().context("Invalid page index")?;
+            if index < 1 {
+                return Err(anyhow::anyhow!("Page index must be >= 1"));
+            }
+            result.push(index - 1);
+        }
+    }
+    // sort and deduplicate
+    result.sort();
+    result.dedup();
+    Ok(result)
+}
+
 pub fn render_svg(data: &[u8]) -> Result<DynamicImage> {
     // load system fonts
     let mut fontdb = usvg::fontdb::Database::new();
@@ -178,30 +217,66 @@ pub fn render_svg(data: &[u8]) -> Result<DynamicImage> {
     Ok(DynamicImage::ImageRgba8(buffer))
 }
 
-fn render_pdf(data: &[u8]) -> Result<DynamicImage> {
+fn render_pdf(
+    data: &[u8],
+    conf_w: Option<u32>,
+    term_width: u32,
+    page_indices: Option<Vec<u16>>,
+) -> Result<DynamicImage> {
+    let width = conf_w
+        .unwrap_or(term_width)
+        .try_into()
+        .context("Failed to convert width to i32")?;
+
     // libraries to look for ./, ./pdfium/, /opt/homebrew/lib, /usr/local/lib, /usr/local/pdfium/lib
     let pdfium = Pdfium::new(
         Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("./"))
-            .or_else(|_| Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("./pdfium/")))
-            .or_else(|_| Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("/opt/homebrew/lib")))
-            .or_else(|_| Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("/usr/local/lib")))
-            .or_else(|_| Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("/usr/local/pdfium/lib")))
+            .or_else(|_| {
+                Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("./pdfium/"))
+            })
+            .or_else(|_| {
+                Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path(
+                    "/opt/homebrew/lib",
+                ))
+            })
+            .or_else(|_| {
+                Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path(
+                    "/usr/local/lib",
+                ))
+            })
+            .or_else(|_| {
+                Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path(
+                    "/usr/local/pdfium/lib",
+                ))
+            })
             .or_else(|_| Pdfium::bind_to_system_library())?,
     );
 
+    let config = PdfRenderConfig::new()
+        .set_target_width(width)
+        .render_form_data(true);
+
     let document = pdfium.load_pdf_from_byte_slice(data, None)?;
+    let pages = document.pages();
+    let n_pages = pages.len() as u16;
+    let selected_indices = if let Some(page_indices) = page_indices {
+        // if any >= pages.len(), raise error
+        if page_indices.iter().any(|&i| i >= n_pages) {
+            anyhow::bail!("Page index out of range (must be <= {})", n_pages);
+        }
+        page_indices
+    } else {
+        (0..n_pages).collect()
+    };
 
-    let mut images: Vec<DynamicImage> = Vec::new();
+    let mut images: Vec<RgbaImage> = Vec::new();
 
-    for page in document.pages().iter() {
-        let bitmap = page.render_with_config(
-            &PdfRenderConfig::new()
-                .set_target_width(2000)
-                .render_form_data(true),
-        )?;
-
-        let image = bitmap.as_image();
-
+    for page_index in selected_indices.iter() {
+        let page = pages
+            .get(*page_index)
+            .context(format!("Failed to get page {}", page_index))?;
+        let bitmap = page.render_with_config(&config)?;
+        let image = bitmap.as_image().to_rgba8();
         images.push(image);
     }
 
@@ -216,24 +291,43 @@ fn render_pdf(data: &[u8]) -> Result<DynamicImage> {
 
     let mut current_y = 0;
     for img in images {
-        let rgba = img.to_rgba8();
-        combined.copy_from(&rgba, 0, current_y)?;
-        current_y += rgba.height();
+        combined.copy_from(&img, 0, current_y)?;
+        current_y += img.height();
     }
 
     Ok(DynamicImage::ImageRgba8(combined))
 }
 
-pub fn load_file(path: &PathBuf, input_type: InputType) -> Result<DynamicImage> {
+pub fn load_file(
+    path: &PathBuf,
+    input_type: InputType,
+    conf_w: Option<u32>,
+    term_width: u32,
+    page_indices: Option<Vec<u16>>,
+) -> Result<DynamicImage> {
     let mut file = File::open(path).context("Failed to open file")?;
     let mut data = Vec::new();
     file.read_to_end(&mut data)?;
 
     let extension = path.extension().map_or("", |e| e.to_str().unwrap_or(""));
-    load_data(data, input_type, extension)
+    load_data(
+        data,
+        input_type,
+        extension,
+        conf_w,
+        term_width,
+        page_indices,
+    )
 }
 
-pub fn load_data(data: Vec<u8>, input_type: InputType, extension: &str) -> Result<DynamicImage> {
+pub fn load_data(
+    data: Vec<u8>,
+    input_type: InputType,
+    extension: &str,
+    conf_w: Option<u32>,
+    term_width: u32,
+    page_indices: Option<Vec<u16>>,
+) -> Result<DynamicImage> {
     if input_type == InputType::Image {
         return image::load_from_memory(&data).context("Failed to load image");
     }
@@ -247,7 +341,7 @@ pub fn load_data(data: Vec<u8>, input_type: InputType, extension: &str) -> Resul
     }
 
     if input_type == InputType::Pdf || extension == "pdf" || data.starts_with(b"%PDF") {
-        return render_pdf(&data);
+        return render_pdf(&data, conf_w, term_width, page_indices);
     }
 
     // fallback for input_type == InputType::Auto
@@ -258,7 +352,7 @@ pub fn load_data(data: Vec<u8>, input_type: InputType, extension: &str) -> Resul
                 let path_str = text.trim();
                 let path = PathBuf::from(path_str);
                 if path.exists() && path.is_file() {
-                    return load_file(&path, input_type);
+                    return load_file(&path, input_type, conf_w, term_width, page_indices);
                 }
             }
             Err(anyhow::anyhow!("Failed to decode input: {}", err))

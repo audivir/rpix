@@ -133,8 +133,12 @@ struct Config {
     mode: Mode,
 
     /// Input type
-    #[arg(short = 'i', long, value_enum, default_value_t = InputTypeOption::Auto)]
+    #[arg(short = 'i', long, value_enum, default_value_t = InputTypeOption::Auto, conflicts_with = "pages")]
     input: InputTypeOption,
+
+    /// Select which PDF pages to render, forces input type to pdf (e.g. "1-3,34")
+    #[arg(short = 'P', long, conflicts_with = "input")]
+    pages: Option<String>,
 
     /// Print file name
     #[arg(short = 'p', long)]
@@ -249,8 +253,6 @@ fn run(
     term_size: (u32, u32),
     is_input_available: bool,
 ) -> Result<i32> {
-    let input_type: InputType = conf.input.to_owned().into();
-
     if conf.clear {
         write!(writer, "\x1b_Ga=d\x1b\\")?;
         return Ok(0);
@@ -259,22 +261,48 @@ fn run(
     // If -t is passed, we ignore stdin even if input is available
     let use_stdin = is_input_available && !conf.tty;
 
+    let (page_indices, input_type) = if conf.pages.is_some() {
+        if !use_stdin && conf.files.len() > 1 {
+            writeln!(
+                err_writer,
+                "Error: Cannot specify multiple files with --pages"
+            )?;
+            return Ok(1);
+        }
+        let page_indices = if let Ok(pages) = parse_pages(&conf.pages.as_ref().unwrap()) {
+            Some(pages)
+        } else {
+            writeln!(err_writer, "Error: Invalid page range")?;
+            return Ok(1);
+        };
+        let input_type = InputType::Pdf;
+        (page_indices, input_type)
+    } else {
+        (None, conf.input.to_owned().into())
+    };
+
     if use_stdin {
+        let mut data = Vec::new();
+        reader.read_to_end(&mut data)?;
+        let img = load_data(data, input_type, "", conf.width, term_size.0, page_indices)?;
         if conf.printname {
             writeln!(err_writer, "stdin")?;
         }
-        let mut data = Vec::new();
-        reader.read_to_end(&mut data)?;
-        let img = load_data(data, input_type, "")?;
         render_image(writer, img, &conf, term_size)?;
     } else if !conf.files.is_empty() {
         let mut exit_code = 0;
         for path in &conf.files {
-            if conf.printname {
-                writeln!(err_writer, "{}", path.display())?;
-            }
-            match load_file(path, input_type) {
+            match load_file(
+                path,
+                input_type,
+                conf.width,
+                term_size.0,
+                page_indices.clone(),
+            ) {
                 Ok(img) => {
+                    if conf.printname {
+                        writeln!(err_writer, "{}", path.display())?;
+                    }
                     if let Err(e) = render_image(&mut writer, img, &conf, term_size) {
                         writeln!(err_writer, "Error rendering {}: {}", path.display(), e)?;
                         exit_code = 1;

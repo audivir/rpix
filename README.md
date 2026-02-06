@@ -44,21 +44,22 @@ rpix -f image.png
 
 ### Options
 
-| Flag                 | Description                                            |
-| -------------------- | ------------------------------------------------------ |
-| `-w`, `--width`      | Specify image width in pixels.                         |
-| `-H`, `--height`     | Specify image height in pixels.                        |
-| `-f`, `--fullwidth`  | Resize image to fill the terminal width.               |
-| `-F`, `--fullheight` | Resize image to fill the terminal height.              |
-| `-r`, `--resize`     | Resize image to fill the terminal.                     |
-| `-n`, `--noresize`   | Disable automatic resizing (show original size).       |
-| `-b`, `--background` | Add a background (useful for transparent PNGs/SVGs).   |
-| `-C`, `--color`      | Set background color. Default: white.                  |
-| `-m`, `--mode`       | Set transmission mode (png, zlib, raw). Default: png.  |
-| `-i`, `--input`      | Set input type (auto, image, svg, pdf). Default: auto. |
-| `-p`, `--printname`  | Print the filename before the image.                   |
-| `-t`, `--tty`        | Force tty (ignore stdin check).                        |
-| `-c`, `--clear`      | Clear the terminal (remove all images).                |
+| Flag                 | Description                                                       |
+| -------------------- | ----------------------------------------------------------------- |
+| `-w`, `--width`      | Specify image width in pixels.                                    |
+| `-H`, `--height`     | Specify image height in pixels.                                   |
+| `-f`, `--fullwidth`  | Resize image to fill the terminal width.                          |
+| `-F`, `--fullheight` | Resize image to fill the terminal height.                         |
+| `-r`, `--resize`     | Resize image to fill the terminal.                                |
+| `-n`, `--noresize`   | Disable automatic resizing (show original size).                  |
+| `-b`, `--background` | Add a background (useful for transparent PNGs/SVGs).              |
+| `-C`, `--color`      | Set background color. Default: white.                             |
+| `-m`, `--mode`       | Set transmission mode (png, zlib, raw). Default: png.             |
+| `-i`, `--input`      | Set input type (auto, image, svg, pdf). Default: auto.            |
+| `-P`, `--pages`      | Select pages to render (e.g. "1-3,34"), forces input type to pdf. |
+| `-p`, `--printname`  | Print the filename before the image.                              |
+| `-t`, `--tty`        | Force tty (ignore stdin check).                                   |
+| `-c`, `--clear`      | Clear the terminal (remove all images).                           |
 
 ## License
 

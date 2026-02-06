@@ -11,6 +11,7 @@ const TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
 
 const PNG_DATA: &[u8] = include_bytes!("../fixtures/test.png");
 const SVG_DATA: &[u8] = include_bytes!("../fixtures/test.svg");
+const PDF_DATA: &[u8] = include_bytes!("../fixtures/test.pdf");
 
 // get_term_size
 // TODO: implement test
@@ -109,6 +110,29 @@ fn test_calculate_dimensions(
     assert_eq!(h, expected_h);
 }
 
+#[rstest]
+#[case("1", vec![0])]
+#[case("1,1", vec![0])]
+#[case("1,2", vec![0, 1])]
+#[case("2,1", vec![0, 1])]
+#[case("1-3", vec![0, 1, 2])]
+#[case("1-3,5", vec![0, 1, 2, 4])]
+#[case("1-3,5-7", vec![0, 1, 2, 4, 5, 6])]
+fn test_parse_pages(#[case] input: &str, #[case] expected: Vec<u16>) {
+    let result = parse_pages(input);
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), expected);
+}
+
+#[rstest]
+#[case("0")]
+#[case("-1")]
+#[case("1-2,4-3")]
+fn test_parse_pages_invalid(#[case] input: &str) {
+    let result = parse_pages(input);
+    assert!(result.is_err());
+}
+
 #[test]
 fn test_render_svg() {
     let result = render_svg(SVG_DATA);
@@ -131,13 +155,50 @@ fn test_render_svg_invalid() {
 }
 
 #[rstest]
+#[case(None, 100, None, 100)]
+#[case(None, 100, Some(vec![0]), 100)]
+#[case(Some(10), 100, None, 10)]
+fn test_render_pdf(
+    #[case] conf_w: Option<u32>,
+    #[case] term_width: u32,
+    #[case] page_indices: Option<Vec<u16>>,
+    #[case] expected_width: u32,
+) {
+    let result = render_pdf(PDF_DATA, conf_w, term_width, page_indices);
+    assert!(result.is_ok(), "PDF generation failed");
+
+    let img = result.unwrap();
+    assert_eq!(img.width(), expected_width);
+
+    let pixel = img.get_pixel(0, 0);
+    assert_eq!(pixel, Rgba([255, 255, 255, 255]));
+}
+
+#[test]
+fn test_render_pdf_invalid() {
+    let pdf_data = br#"%PDF-1.4
+invalid"#;
+
+    let result = render_pdf(pdf_data, None, 100, None);
+    assert!(result.is_err(), "PDF generation failed");
+}
+
+#[rstest]
+#[case(vec![])]
+#[case(vec![2])]
+fn test_render_pdf_out_of_range(#[case] page_indices: Vec<u16>) {
+    let result = render_pdf(PDF_DATA, None, 100, Some(page_indices));
+    assert!(result.is_err(), "PDF generation failed");
+}
+
+#[rstest]
 #[case(PathBuf::from("fixtures/test.svg"), InputType::Svg)]
 #[case(PathBuf::from("fixtures/test.png"), InputType::Image)]
 #[case(PathBuf::from("fixtures/test.pdf"), InputType::Pdf)]
 fn test_load_file(#[case] path: PathBuf, #[case] input_type: InputType) {
-    let result = load_file(&path, input_type);
+    let result = load_file(&path, input_type, None, 100, None);
     assert!(result.is_ok());
-    let result_auto = load_file(&path, InputType::Auto);
+    let result_auto = load_file(&path, InputType::Auto, None, 100, None);
     assert!(result_auto.is_ok());
 }
 
@@ -168,7 +229,7 @@ fn test_load_file_invalid(
     #[case] input_type: InputType,
     #[case] err_msg: &str,
 ) {
-    let result = load_file(&path, input_type);
+    let result = load_file(&path, input_type, None, 100, None);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), err_msg);
 }
@@ -179,7 +240,7 @@ fn test_load_file_invalid(
 #[case("fixtures/test.png".as_bytes())]
 #[case(PNG_DATA)]
 fn test_load_data(#[case] data: &[u8]) {
-    let result = load_data(data.to_vec(), InputType::Auto, "");
+    let result = load_data(data.to_vec(), InputType::Auto, "", None, 100, None);
     assert!(result.is_ok());
 }
 
@@ -192,7 +253,7 @@ fn test_load_data(#[case] data: &[u8]) {
     Some("Failed to decode input: The image format could not be determined")
 )]
 fn test_load_data_invalid(#[case] data: &[u8], #[case] err_msg: Option<&str>) {
-    let result = load_data(data.to_vec(), InputType::Auto, "");
+    let result = load_data(data.to_vec(), InputType::Auto, "", None, 100, None);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), err_msg.unwrap());
 }

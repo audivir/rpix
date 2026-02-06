@@ -20,6 +20,7 @@ fn default_conf() -> Config {
         color: "FFFFFF".to_string(),
         mode: Mode::Png,
         input: InputTypeOption::Auto,
+        pages: None,
         printname: true, // default to true for tests
         tty: false,
         clear: false,
@@ -113,6 +114,49 @@ fn test_resize(
 
 // --background, --color
 // TODO: implement
+
+// --input
+// TODO: implement
+
+#[rstest]
+#[case(vec![],"0", false, "Error: Invalid page range\n")]
+#[case(vec![],"-1", false, "Error: Invalid page range\n")]
+#[case(vec!["fixtures/test.pdf".into()],"2", false, "Error loading fixtures/test.pdf: Page index out of range (must be <= 1)\n")]
+#[case(vec!["fixtures/test.pdf".into(),"fixtures/test.png".into()],"1", false, "Error: Cannot specify multiple files with --pages\n")]
+#[case(vec!["fixtures/test.pdf".into()],"1", true, "fixtures/test.pdf\n")]
+fn test_pages(
+    #[case] files: Vec<PathBuf>,
+    #[case] pages: &str,
+    #[case] success: bool,
+    #[case] expected_error: &str,
+) {
+    let mut conf = default_conf();
+    conf.files = files;
+    conf.pages = Some(pages.to_string());
+    if success {
+        run_test(
+            conf,
+            false,
+            Cursor::new(vec![]),
+            "\x1b_Ga=T",
+            expected_error,
+            0,
+            true,
+            (800, 400),
+        );
+    } else {
+        run_test(
+            conf,
+            false,
+            Cursor::new(vec![]),
+            "",
+            expected_error,
+            1,
+            false,
+            (800, 400),
+        );
+    }
+}
 
 // --tty
 #[rstest]
@@ -235,7 +279,7 @@ fn test_no_input() {
 #[rstest]
 #[case(vec!["fixtures/test.png".into()], "fixtures/test.png\n", 0)]
 #[case(vec!["fixtures/test.jpg".into(), "fixtures/test.png".into()], "fixtures/test.jpg\nfixtures/test.png\n", 0)]
-#[case(vec!["fixtures/test.png".into(), "nonexistent".into()], "fixtures/test.png\nnonexistent\nError loading nonexistent: Failed to open file\n", 1)]
+#[case(vec!["fixtures/test.png".into(), "nonexistent".into()], "fixtures/test.png\nError loading nonexistent: Failed to open file\n", 1)]
 fn test_files(
     #[case] files: Vec<PathBuf>,
     #[case] expected_error: &str,

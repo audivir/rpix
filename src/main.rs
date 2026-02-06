@@ -21,6 +21,25 @@ enum Mode {
     Raw,
 }
 
+#[derive(Debug, Clone, ValueEnum, PartialEq)]
+enum InputTypeOption {
+    Auto,
+    Image,
+    Svg,
+    Pdf,
+}
+
+impl From<InputTypeOption> for InputType {
+    fn from(arg: InputTypeOption) -> Self {
+        match arg {
+            InputTypeOption::Auto => InputType::Auto,
+            InputTypeOption::Image => InputType::Image,
+            InputTypeOption::Svg => InputType::Svg,
+            InputTypeOption::Pdf => InputType::Pdf,
+        }
+    }
+}
+
 /// A image viewer for the Kitty Terminal Graphics Protocol.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -56,6 +75,10 @@ struct Config {
     /// Transmission mode
     #[arg(short = 'm', long, value_enum, default_value_t = Mode::Png)]
     mode: Mode,
+
+    /// Input type
+    #[arg(short = 'i', long, value_enum, default_value_t = InputTypeOption::Auto)]
+    input_type: InputTypeOption,
 
     /// Print file name
     #[arg(short = 'p', long)]
@@ -162,11 +185,13 @@ fn render_image(
 fn run(
     mut writer: impl Write,
     mut err_writer: impl Write,
-    reader: impl Read,
+    mut reader: impl Read,
     conf: Config,
     term_width: u32,
     is_input_available: bool,
 ) -> Result<i32> {
+    let input_type: InputType = conf.input_type.to_owned().into();
+
     if conf.clear {
         write!(writer, "\x1b_Ga=d\x1b\\")?;
         return Ok(0);
@@ -179,7 +204,9 @@ fn run(
         if conf.printname {
             writeln!(err_writer, "stdin")?;
         }
-        let img = load_stream(reader)?;
+        let mut data = Vec::new();
+        reader.read_to_end(&mut data)?;
+        let img = load_data(data, input_type, "")?;
         render_image(writer, img, &conf, term_width)?;
     } else if !conf.files.is_empty() {
         let mut exit_code = 0;
@@ -187,7 +214,7 @@ fn run(
             if conf.printname {
                 writeln!(err_writer, "{}", path.display())?;
             }
-            match load_file(path) {
+            match load_file(path, input_type) {
                 Ok(img) => {
                     if let Err(e) = render_image(&mut writer, img, &conf, term_width) {
                         writeln!(err_writer, "Error rendering {}: {}", path.display(), e)?;

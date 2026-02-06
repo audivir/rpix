@@ -17,6 +17,7 @@ fn default_conf() -> Config {
         background: false,
         color: "FFFFFF".to_string(),
         mode: Mode::Png,
+        input_type: InputTypeOption::Auto,
         printname: true, // default to true for tests
         tty: false,
         clear: false,

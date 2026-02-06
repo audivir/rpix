@@ -3,7 +3,6 @@ use super::*;
 use image::Rgba;
 use image::{DynamicImage, GenericImageView};
 use rstest::rstest;
-use std::io::Cursor;
 use std::path::PathBuf;
 
 const WHITE: Rgba<u8> = Rgba([255, 255, 255, 255]);
@@ -107,20 +106,24 @@ fn test_render_svg_invalid() {
 }
 
 #[rstest]
-#[case(PathBuf::from("fixtures/test.svg"))]
-#[case(PathBuf::from("fixtures/test.png"))]
-fn test_load_file(#[case] path: PathBuf) {
-    let result = load_file(&path);
+#[case(PathBuf::from("fixtures/test.svg"), InputType::Svg)]
+#[case(PathBuf::from("fixtures/test.png"), InputType::Image)]
+fn test_load_file(#[case] path: PathBuf, #[case] input_type: InputType) {
+    let result = load_file(&path, input_type);
     assert!(result.is_ok());
+    let result_auto = load_file(&path, InputType::Auto);
+    assert!(result_auto.is_ok());
 }
 
 #[rstest]
-#[case(PathBuf::from("nonexistent"), Some("Failed to open file"))]
-#[case(PathBuf::from("fixtures/test.random"), Some("Failed to load image"))]
-fn test_load_file_invalid(#[case] path: PathBuf, #[case] err_msg: Option<&str>) {
-    let result = load_file(&path);
+#[case(PathBuf::from("nonexistent"), InputType::Auto, "Failed to open file")]
+#[case(PathBuf::from("fixtures/test.random"), InputType::Auto, "Failed to decode input: The image format could not be determined")]
+#[case(PathBuf::from("fixtures/test.svg"), InputType::Image, "Failed to load image")]
+#[case(PathBuf::from("fixtures/test.png"), InputType::Svg, "Failed to parse SVG")]
+fn test_load_file_invalid(#[case] path: PathBuf, #[case] input_type: InputType, #[case] err_msg: &str) {
+    let result = load_file(&path, input_type);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().to_string(), err_msg.unwrap());
+    assert_eq!(result.unwrap_err().to_string(), err_msg);
 }
 
 #[rstest]
@@ -128,8 +131,8 @@ fn test_load_file_invalid(#[case] path: PathBuf, #[case] err_msg: Option<&str>) 
 #[case(SVG_DATA)]
 #[case("fixtures/test.png".as_bytes())]
 #[case(PNG_DATA)]
-fn test_load_stream(#[case] data: &[u8]) {
-    let result = load_stream(Cursor::new(data));
+fn test_load_data(#[case] data: &[u8]) {
+    let result = load_data(data.to_vec(), InputType::Auto, "");
     assert!(result.is_ok());
 }
 
@@ -141,8 +144,8 @@ fn test_load_stream(#[case] data: &[u8]) {
     b"",
     Some("Failed to decode input: The image format could not be determined")
 )]
-fn test_load_stream_invalid(#[case] data: &[u8], #[case] err_msg: Option<&str>) {
-    let result = load_stream(Cursor::new(data));
+fn test_load_data_invalid(#[case] data: &[u8], #[case] err_msg: Option<&str>) {
+    let result = load_data(data.to_vec(), InputType::Auto, "");
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), err_msg.unwrap());
 }

@@ -7,6 +7,14 @@ use std::path::PathBuf;
 #[cfg(test)]
 mod tests_lib;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum InputType {
+    Auto,
+    Image,
+    Svg,
+    Pdf,
+}
+
 pub fn get_term_width_pixels() -> u32 {
    
     if let Ok(size) = crossterm::terminal::window_size() {
@@ -133,29 +141,33 @@ pub fn render_svg(data: &[u8]) -> Result<DynamicImage> {
     Ok(DynamicImage::ImageRgba8(buffer))
 }
 
-pub fn load_file(path: &PathBuf) -> Result<DynamicImage> {
+pub fn render_pdf(_data: &[u8]) -> Result<DynamicImage> {
+    Err(anyhow::anyhow!("PDF rendering not implemented"))
+}
+
+pub fn load_file(path: &PathBuf, input_type: InputType) -> Result<DynamicImage> {
     let mut file = File::open(path).context("Failed to open file")?;
     let mut data = Vec::new();
     file.read_to_end(&mut data)?;
 
-    if path.extension().map_or(false, |e| e == "svg")
-        || data.starts_with(b"<svg")
-        || data.starts_with(b"<?xml")
-    {
-        return render_svg(&data);
-    }
-    image::load_from_memory(&data).context("Failed to load image")
+    let extension = path.extension().map_or("", |e| e.to_str().unwrap_or(""));
+    return load_data(data, input_type, extension);
 }
 
-pub fn load_stream(mut reader: impl Read) -> Result<DynamicImage> {
-    let mut data = Vec::new();
-    reader.read_to_end(&mut data)?;
+pub fn load_data(data: Vec<u8>, input_type: InputType, extension: &str) -> Result<DynamicImage> {
+    if input_type == InputType::Image {
+        return image::load_from_memory(&data).context("Failed to load image");
+    }
 
-    if data.starts_with(b"<svg") || data.starts_with(b"<?xml") {
+    if input_type == InputType::Svg || extension == "svg" || data.starts_with(b"<svg") || data.starts_with(b"<?xml") {
         return render_svg(&data);
     }
 
-    // fallback for "echo filename | rpix"
+    if input_type == InputType::Pdf || extension == "pdf" || data.starts_with(b"%PDF") {
+        return render_pdf(&data);
+    }
+
+    // fallback for input_type == InputType::Auto
     match image::load_from_memory(&data) {
         Ok(img) => Ok(img),
         Err(err) => {
@@ -163,7 +175,7 @@ pub fn load_stream(mut reader: impl Read) -> Result<DynamicImage> {
                 let path_str = text.trim();
                 let path = PathBuf::from(path_str);
                 if path.exists() && path.is_file() {
-                    return load_file(&path);
+                    return load_file(&path, input_type);
                 }
             }
             Err(anyhow::anyhow!("Failed to decode input: {}", err))

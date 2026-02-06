@@ -139,7 +139,8 @@ pub fn render_svg(data: &[u8]) -> Result<DynamicImage> {
 fn render_pdf(data: &[u8]) -> Result<DynamicImage> {
     let pdfium = Pdfium::new(
         Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("./"))
-            .or_else(|_| Pdfium::bind_to_system_library())?, //.context("Failed to bind to PDFium")?
+            .or_else(|_| Pdfium::bind_to_system_library())
+            .context("Failed to bind to PDFium")?,
     );
 
     let document = pdfium.load_pdf_from_byte_slice(data, None)?;

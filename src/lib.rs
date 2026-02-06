@@ -153,10 +153,13 @@ pub fn calculate_dimensions(
 }
 
 // Parse a 1-indexed pages string to 0-indexed vector
-pub fn parse_pages(pages: &str) -> Result<Vec<u16>> {
+pub fn parse_pages(pages: &str) -> Result<Option<Vec<u16>>> {
     let mut result = Vec::new();
     for part in pages.split(',') {
         let part = part.trim();
+        if part.is_empty() {
+            continue;
+        }
         if part.contains('-') {
             let mut parts = part.split('-');
             let start = parts
@@ -185,10 +188,13 @@ pub fn parse_pages(pages: &str) -> Result<Vec<u16>> {
             result.push(index - 1);
         }
     }
+    if result.is_empty() {
+        return Ok(None);
+    }
     // sort and deduplicate
     result.sort();
     result.dedup();
-    Ok(result)
+    Ok(Some(result))
 }
 
 pub fn render_svg(data: &[u8]) -> Result<DynamicImage> {

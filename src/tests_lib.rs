@@ -115,16 +115,25 @@ fn test_calculate_dimensions(
 #[case("1,1", vec![0])]
 #[case("1,2", vec![0, 1])]
 #[case("2,1", vec![0, 1])]
+#[case("2,,3", vec![1, 2])]
 #[case("1-3", vec![0, 1, 2])]
 #[case("1-3,5", vec![0, 1, 2, 4])]
 #[case("1-3,5-7", vec![0, 1, 2, 4, 5, 6])]
 fn test_parse_pages(#[case] input: &str, #[case] expected: Vec<u16>) {
     let result = parse_pages(input);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), expected);
+    assert_eq!(result.unwrap(), Some(expected));
+}
+
+#[test]
+fn test_parse_pages_empty() {
+    let result = parse_pages("");
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), None);
 }
 
 #[rstest]
+#[case("a")]
 #[case("0")]
 #[case("-1")]
 #[case("1-2,4-3")]

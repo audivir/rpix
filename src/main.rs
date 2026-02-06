@@ -270,7 +270,7 @@ fn run(
             return Ok(1);
         }
         let page_indices = if let Ok(pages) = parse_pages(&conf.pages.as_ref().unwrap()) {
-            Some(pages)
+            pages
         } else {
             writeln!(err_writer, "Error: Invalid page range")?;
             return Ok(1);

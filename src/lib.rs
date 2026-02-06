@@ -1,8 +1,9 @@
 use anyhow::{Context, Result};
-use image::{DynamicImage, Rgba, RgbaImage};
+use image::{GenericImage, DynamicImage, Rgba, RgbaImage};
 use std::fs::File;
 use std::io::{Read};
 use std::path::PathBuf;
+use pdfium_render::prelude::{Pdfium, PdfRenderConfig};
 
 #[cfg(test)]
 mod tests_lib;
@@ -141,8 +142,46 @@ pub fn render_svg(data: &[u8]) -> Result<DynamicImage> {
     Ok(DynamicImage::ImageRgba8(buffer))
 }
 
-pub fn render_pdf(_data: &[u8]) -> Result<DynamicImage> {
-    Err(anyhow::anyhow!("PDF rendering not implemented"))
+fn render_pdf(data: &[u8]) -> Result<DynamicImage> {
+    let pdfium = Pdfium::new(
+        Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("./"))
+            .or_else(|_| Pdfium::bind_to_system_library())? //.context("Failed to bind to PDFium")?
+    );
+
+    let document = pdfium.load_pdf_from_byte_slice(data, None)?;
+
+    let mut images: Vec<DynamicImage> = Vec::new();
+
+    for page in document.pages().iter() {
+        let bitmap = page
+            .render_with_config(
+                &PdfRenderConfig::new()
+                    .set_target_width(2000)
+                    .render_form_data(true),
+            )?;
+
+        let image = bitmap.as_image();
+
+        images.push(image);
+    }
+
+    if images.is_empty() {
+        anyhow::bail!("No pages found in PDF");
+    }
+
+    let max_width = images.iter().map(|img| img.width()).max().unwrap();
+    let total_height = images.iter().map(|img| img.height()).sum::<u32>();
+
+    let mut combined = RgbaImage::new(max_width, total_height);
+
+    let mut current_y = 0;
+    for img in images {
+        let rgba = img.to_rgba8();
+        combined.copy_from(&rgba, 0, current_y)?;
+        current_y += rgba.height();
+    }
+
+    Ok(DynamicImage::ImageRgba8(combined))
 }
 
 pub fn load_file(path: &PathBuf, input_type: InputType) -> Result<DynamicImage> {
@@ -151,7 +190,7 @@ pub fn load_file(path: &PathBuf, input_type: InputType) -> Result<DynamicImage> 
     file.read_to_end(&mut data)?;
 
     let extension = path.extension().map_or("", |e| e.to_str().unwrap_or(""));
-    return load_data(data, input_type, extension);
+    load_data(data, input_type, extension)
 }
 
 pub fn load_data(data: Vec<u8>, input_type: InputType, extension: &str) -> Result<DynamicImage> {

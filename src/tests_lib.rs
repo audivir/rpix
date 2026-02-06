@@ -108,6 +108,7 @@ fn test_render_svg_invalid() {
 #[rstest]
 #[case(PathBuf::from("fixtures/test.svg"), InputType::Svg)]
 #[case(PathBuf::from("fixtures/test.png"), InputType::Image)]
+#[case(PathBuf::from("fixtures/test.pdf"), InputType::Pdf)]
 fn test_load_file(#[case] path: PathBuf, #[case] input_type: InputType) {
     let result = load_file(&path, input_type);
     assert!(result.is_ok());
@@ -117,10 +118,31 @@ fn test_load_file(#[case] path: PathBuf, #[case] input_type: InputType) {
 
 #[rstest]
 #[case(PathBuf::from("nonexistent"), InputType::Auto, "Failed to open file")]
-#[case(PathBuf::from("fixtures/test.random"), InputType::Auto, "Failed to decode input: The image format could not be determined")]
-#[case(PathBuf::from("fixtures/test.svg"), InputType::Image, "Failed to load image")]
-#[case(PathBuf::from("fixtures/test.png"), InputType::Svg, "Failed to parse SVG")]
-fn test_load_file_invalid(#[case] path: PathBuf, #[case] input_type: InputType, #[case] err_msg: &str) {
+#[case(
+    PathBuf::from("fixtures/test.random"),
+    InputType::Auto,
+    "Failed to decode input: The image format could not be determined"
+)]
+#[case(
+    PathBuf::from("fixtures/test.svg"),
+    InputType::Image,
+    "Failed to load image"
+)]
+#[case(
+    PathBuf::from("fixtures/test.png"),
+    InputType::Svg,
+    "Failed to parse SVG"
+)]
+#[case(
+    PathBuf::from("fixtures/test.pdf"),
+    InputType::Svg,
+    "Failed to parse SVG"
+)]
+fn test_load_file_invalid(
+    #[case] path: PathBuf,
+    #[case] input_type: InputType,
+    #[case] err_msg: &str,
+) {
     let result = load_file(&path, input_type);
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), err_msg);

@@ -130,7 +130,7 @@ fn render_image(
         let (width, height) = final_img.dimensions();
         let color_type = final_img.color();
 
-        encoder.write_image(final_img.as_bytes(), width, height, color_type)?;
+        encoder.write_image(final_img.as_bytes(), width, height, color_type.into())?;
 
         payload = buffer;
 

@@ -2,7 +2,11 @@
 
 A image viewer for the Kitty Terminal Graphics Protocol.
 
-**rpix** is a spiritual successor to `tpix`, rewritten in Rust for wider SVG support using `resvg` and 16-bit PNG support.
+**rpix** is a spiritual successor to `tpix`, rewritten in Rust with:
+
+- wider SVG support using `resvg`,
+- 16-bit PNG support,
+- and PDF support using `pdfium`.
 
 ## Installation
 
@@ -16,6 +20,8 @@ cd rpix
 cargo build --release
 cp target/release/rpix ~/.local/bin/
 ```
+
+For PDF support, download `libpdfium.dylib` or `libpdfium.so` from [pdfium](https://github.com/bblanchon/pdfium-binaries/releases) and copy it in the same directory as `rpix`, one of the system library paths, or add the directory containing `libpdfium` library to `DYLD_LIBRARY_PATH` on macOS or `LD_LIBRARY_PATH` on Linux.
 
 ## Usage
 
@@ -60,4 +66,5 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 - Based on the logic of [tpix](https://github.com/jesvedberg/tpix) by Jesper Svedberg (MIT License).
 - Uses [resvg](https://github.com/RazrFalcon/resvg) for SVG rendering (MIT License).
+- Uses pre-compiled [pdfium-binaries](https://github.com/bblanchon/pdfium-binaries/releases) for PDF rendering (MIT License).
 - "fixtures/semi_transparent.png" is by Nguyễn Trí Minh Hoàng and is licensed under CC BY-SA 3.0.

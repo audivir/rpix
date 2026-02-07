@@ -12,11 +12,11 @@ const TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
 const PNG_DATA: &[u8] = include_bytes!("../fixtures/test.png");
 const SVG_DATA: &[u8] = include_bytes!("../fixtures/test.svg");
 const PDF_DATA: &[u8] = include_bytes!("../fixtures/test.pdf");
+const HTML_DATA: &[u8] = include_bytes!("../fixtures/test.html");
 
 fn default_ctx() -> RpixContext {
     RpixContext {
         input_type: InputType::Auto,
-        driver: HtmlDriver::Auto,
         conf_w: None,
         conf_h: None,
         term_width: 100,
@@ -107,14 +107,12 @@ fn test_calculate_dimensions(
 
     let (w, h) = calculate_dimensions(
         img_dims,
-        conf_w,
-        conf_h,
+        (conf_w, conf_h),
         fullwidth,
         fullheight,
         resize,
         noresize,
-        term_width,
-        term_height,
+        (term_width, term_height),
     );
 
     assert_eq!(w, expected_w);
@@ -212,6 +210,37 @@ fn test_render_pdf_out_of_range(#[case] page_indices: Vec<u16>) {
 }
 
 #[rstest]
+#[case(HTML_DATA)]
+#[case(b"fixtures/test.html")]
+#[case(b"https://commons.wikimedia.org/wiki/File:Solid_red.png")]
+fn test_render_html_chrome(#[case] html_data: &[u8]) {
+    let result = render_html_chrome(html_data);
+    assert!(result.is_ok(), "HTML generation failed");
+
+    let img = result.unwrap();
+
+    // iterate through all pixels and check if any is red
+    let mut red_found = false;
+    for x in 0..img.width() {
+        for y in 0..img.height() {
+            let pixel = img.get_pixel(x, y);
+            if pixel == Rgba([255, 0, 0, 255]) {
+                red_found = true;
+                break;
+            }
+        }
+    }
+    assert!(red_found, "Red pixel not found");
+}
+
+#[rstest]
+#[case(b"\x76\xcf")] // non-utf-8
+fn test_render_html_chrome_invalid(#[case] html_data: &[u8]) {
+    let result = render_html_chrome(html_data);
+    assert!(result.is_err(), "HTML generation should fail");
+}
+
+#[rstest]
 #[case(PathBuf::from("fixtures/test.svg"), InputType::Svg)]
 #[case(PathBuf::from("fixtures/test.png"), InputType::Image)]
 #[case(PathBuf::from("fixtures/test.pdf"), InputType::Pdf)]
@@ -265,7 +294,7 @@ fn test_load_file_invalid(
 #[case(PNG_DATA)]
 fn test_load_data(#[case] data: &[u8]) {
     let ctx = default_ctx();
-    let result = load_data(&ctx, data.to_vec(), "");
+    let result = load_data(&ctx, data, "");
     assert!(result.is_ok());
 }
 
@@ -279,7 +308,7 @@ fn test_load_data(#[case] data: &[u8]) {
 )]
 fn test_load_data_invalid(#[case] data: &[u8], #[case] err_msg: Option<&str>) {
     let ctx = default_ctx();
-    let result = load_data(&ctx, data.to_vec(), "");
+    let result = load_data(&ctx, data, "");
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().to_string(), err_msg.unwrap());
 }

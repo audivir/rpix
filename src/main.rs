@@ -27,6 +27,7 @@ enum InputTypeOption {
     Image,
     Svg,
     Pdf,
+    Html,
 }
 
 impl From<InputTypeOption> for InputType {
@@ -36,23 +37,7 @@ impl From<InputTypeOption> for InputType {
             InputTypeOption::Image => InputType::Image,
             InputTypeOption::Svg => InputType::Svg,
             InputTypeOption::Pdf => InputType::Pdf,
-        }
-    }
-}
-
-#[derive(Debug, Clone, ValueEnum, PartialEq)]
-enum HtmlDriverOption {
-    Auto,
-    Browser,
-    Render,
-}
-
-impl From<HtmlDriverOption> for HtmlDriver {
-    fn from(arg: HtmlDriverOption) -> Self {
-        match arg {
-            HtmlDriverOption::Auto => HtmlDriver::Auto,
-            HtmlDriverOption::Browser => HtmlDriver::Browser,
-            HtmlDriverOption::Render => HtmlDriver::Render,
+            InputTypeOption::Html => InputType::Html,
         }
     }
 }
@@ -157,10 +142,6 @@ struct Config {
     #[arg(short = 'P', long, conflicts_with = "input")]
     pages: Option<String>,
 
-    /// HTML driver
-    #[arg(short = 'd', long, value_enum, default_value_t = HtmlDriverOption::Auto)]
-    driver: HtmlDriverOption,
-
     /// Print file name
     #[arg(short = 'p', long)]
     printname: bool,
@@ -182,14 +163,12 @@ fn render_image(
 ) -> Result<()> {
     let (w, h) = calculate_dimensions(
         img.dimensions(),
-        conf.width,
-        conf.height,
+        (conf.width, conf.height),
         conf.fullwidth,
         conf.fullheight,
         conf.resize,
         conf.noresize,
-        term_size.0,
-        term_size.1,
+        term_size,
     );
     let mut final_img = img;
 
@@ -282,7 +261,7 @@ fn run(
     // If -t is passed, we ignore stdin even if input is available
     let use_stdin = is_input_available && !conf.tty;
 
-    let (page_indices, input_type) = if conf.pages.is_some() {
+    let (page_indices, input_type) = if let Some(pages) = conf.pages.clone() {
         if !use_stdin && conf.files.len() > 1 {
             writeln!(
                 err_writer,
@@ -290,7 +269,7 @@ fn run(
             )?;
             return Ok(1);
         }
-        let page_indices = if let Ok(pages) = parse_pages(&conf.pages.as_ref().unwrap()) {
+        let page_indices = if let Ok(pages) = parse_pages(&pages) {
             pages
         } else {
             writeln!(err_writer, "Error: Invalid page range")?;
@@ -304,7 +283,6 @@ fn run(
 
     let ctx = RpixContext {
         input_type,
-        driver: conf.driver.clone().into(),
         conf_w: conf.width,
         conf_h: conf.height,
         term_width: term_size.0,
@@ -315,7 +293,7 @@ fn run(
     if use_stdin {
         let mut data = Vec::new();
         reader.read_to_end(&mut data)?;
-        let img = load_data(&ctx, data, "")?;
+        let img = load_data(&ctx, &data, "")?;
         if conf.printname {
             writeln!(err_writer, "stdin")?;
         }

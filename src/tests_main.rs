@@ -21,7 +21,6 @@ fn default_conf() -> Config {
         mode: Mode::Png,
         input: InputTypeOption::Auto,
         pages: None,
-        driver: HtmlDriverOption::Auto,
         printname: true, // default to true for tests
         tty: false,
         clear: false,

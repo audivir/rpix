@@ -1,4 +1,7 @@
 use anyhow::{Context, Result};
+use base64::{engine::general_purpose, Engine as _};
+use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption;
+use headless_chrome::{Browser, LaunchOptions};
 use image::{DynamicImage, GenericImage, Rgba, RgbaImage};
 use pdfium_render::prelude::{PdfRenderConfig, Pdfium};
 use std::fs::File;
@@ -14,18 +17,11 @@ pub enum InputType {
     Image,
     Svg,
     Pdf,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum HtmlDriver {
-    Auto,
-    Browser,
-    Render,
+    Html,
 }
 
 pub struct RpixContext {
     pub input_type: InputType,
-    pub driver: HtmlDriver,
     pub conf_w: Option<u32>,
     pub conf_h: Option<u32>,
     pub term_width: u32,
@@ -110,18 +106,16 @@ pub fn add_background(img: &DynamicImage, color: &Rgba<u8>) -> DynamicImage {
 
 pub fn calculate_dimensions(
     img_dims: (u32, u32),
-    conf_w: Option<u32>,
-    conf_h: Option<u32>,
+    conf_size: (Option<u32>, Option<u32>),
     fullwidth: bool,
     fullheight: bool,
     resize: bool,
     noresize: bool,
-    term_width: u32,
-    term_height: u32,
+    term_size: (u32, u32),
 ) -> (u32, u32) {
     let (orig_w, orig_h) = (img_dims.0 as f64, img_dims.1 as f64);
-    let mut width = conf_w.unwrap_or(0) as f64;
-    let mut height = conf_h.unwrap_or(0) as f64;
+    let mut width = conf_size.0.unwrap_or(0) as f64;
+    let mut height = conf_size.1.unwrap_or(0) as f64;
 
     let mut use_resize = resize;
     let mut use_fullwidth = fullwidth;
@@ -132,8 +126,8 @@ pub fn calculate_dimensions(
     if !noresize
         && !use_fullwidth
         && !use_fullheight
-        && ((orig_w > term_width.into() && term_width > 0)
-            || (orig_h > term_height.into() && term_height > 0))
+        && ((orig_w > term_size.0.into() && term_size.0 > 0)
+            || (orig_h > term_size.1.into() && term_size.1 > 0))
     {
         use_resize = true;
     }
@@ -155,11 +149,11 @@ pub fn calculate_dimensions(
         width = orig_w * (height / orig_h);
     // use full terminal width, scale height by aspect ratio
     } else if use_fullwidth {
-        width = term_width.into();
+        width = term_size.0.into();
         height = orig_h * (width / orig_w);
     // use full terminal height, scale width by aspect ratio
     } else if use_fullheight {
-        height = term_height.into();
+        height = term_size.1.into();
         width = orig_w * (height / orig_h);
     // use original size
     } else {
@@ -323,30 +317,69 @@ fn render_pdf(
     Ok(DynamicImage::ImageRgba8(combined))
 }
 
+/// Checks if a byte slice is a URL (http, https, file)
+fn is_url(s: &[u8]) -> bool {
+    s.starts_with(b"http://") || s.starts_with(b"https://") || s.starts_with(b"file://")
+}
+/// Checks if a str is a URL (http, https, file)
+fn is_url_str(s: &str) -> bool {
+    s.starts_with("http://") || s.starts_with("https://") || s.starts_with("file://")
+}
 
-pub fn load_file(
-    ctx: &RpixContext,
-    path: &PathBuf,
-) -> Result<DynamicImage> {
+/// Checks if a string is HTML (ends with .html, .htm, or is a URL)
+fn is_html(ctx: &RpixContext, extension: &str, s: &[u8]) -> bool {
+    ctx.input_type == InputType::Html || extension == "html" || extension == "htm" || is_url(s)
+}
+
+fn render_html_chrome(data: &[u8]) -> Result<DynamicImage> {
+    // Try UTF-8 once
+    let data_str = std::str::from_utf8(data)?;
+
+    let url: String = if is_url_str(data_str) {
+        data_str.to_owned() // convert &str → String
+    } else {
+        let path = PathBuf::from(data_str);
+        if path.exists() {
+            let absolute_path = path.canonicalize()?;
+            format!("file://{}", absolute_path.display())
+        } else {
+            format!(
+                "data:text/html;base64,{}",
+                general_purpose::STANDARD.encode(data)
+            )
+        }
+    };
+
+    // automatically fetch chromium executable using LaunchOptions
+    let browser = Browser::new(LaunchOptions::default())?;
+    let tab = browser.new_tab()?;
+
+    tab.navigate_to(&url)?;
+    tab.wait_for_element("body")?;
+
+    let png_data = tab.capture_screenshot(CaptureScreenshotFormatOption::Png, None, None, true)?;
+    let img = image::load_from_memory(&png_data)?;
+    Ok(img)
+}
+
+pub fn load_file(ctx: &RpixContext, path: &PathBuf) -> Result<DynamicImage> {
+    let extension = path.extension().map_or("", |e| e.to_str().unwrap_or(""));
+    let path_bytes = path.to_str().unwrap().as_bytes();
+
+    if is_html(ctx, extension, path_bytes) {
+        return render_html_chrome(path_bytes);
+    }
+
     let mut file = File::open(path).context("Failed to open file")?;
     let mut data = Vec::new();
     file.read_to_end(&mut data)?;
 
-    let extension = path.extension().map_or("", |e| e.to_str().unwrap_or(""));
-    load_data(
-        ctx,
-        data,
-        extension,
-    )
+    load_data(ctx, &data, extension)
 }
 
-pub fn load_data(
-    ctx: &RpixContext,
-    data: Vec<u8>,
-    extension: &str,
-) -> Result<DynamicImage> {
+pub fn load_data(ctx: &RpixContext, data: &[u8], extension: &str) -> Result<DynamicImage> {
     if ctx.input_type == InputType::Image {
-        return image::load_from_memory(&data).context("Failed to load image");
+        return image::load_from_memory(data).context("Failed to load image");
     }
 
     if ctx.input_type == InputType::Svg
@@ -354,22 +387,25 @@ pub fn load_data(
         || data.starts_with(b"<svg")
         || data.starts_with(b"<?xml")
     {
-        return render_svg(&data);
+        return render_svg(data);
     }
 
     if ctx.input_type == InputType::Pdf || extension == "pdf" || data.starts_with(b"%PDF") {
-        return render_pdf(&data, ctx.conf_w, ctx.term_width, ctx.page_indices.clone());
+        return render_pdf(data, ctx.conf_w, ctx.term_width, ctx.page_indices.clone());
     }
 
-    // if input_type == InputType::Html || extension == "html" || extension == "htm" || data.starts_with(b"<html") || data.starts_with(b"<!DOCTYPE html>") {
-    //     return html::render_html_auto(&data, ctx.driver, ctx.conf_w, ctx.conf_h, ctx.term_width, ctx.term_height);
-    // }
+    if is_html(ctx, extension, data)
+        || data.starts_with(b"<html")
+        || data.starts_with(b"<!DOCTYPE html")
+    {
+        return render_html_chrome(data);
+    }
 
     // fallback for input_type == InputType::Auto
-    match image::load_from_memory(&data) {
+    match image::load_from_memory(data) {
         Ok(img) => Ok(img),
         Err(err) => {
-            if let Ok(text) = std::str::from_utf8(&data) {
+            if let Ok(text) = std::str::from_utf8(data) {
                 let path_str = text.trim();
                 let path = PathBuf::from(path_str);
                 if path.exists() && path.is_file() {

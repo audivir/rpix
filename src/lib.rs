@@ -7,6 +7,7 @@ use pdfium_render::prelude::{PdfRenderConfig, Pdfium};
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+use directories::ProjectDirs;
 
 #[cfg(test)]
 mod tests_lib;
@@ -317,6 +318,14 @@ fn render_pdf(
     Ok(DynamicImage::ImageRgba8(combined))
 }
 
+/// Returns the path to the chromium user data directory
+fn chromium_path() -> PathBuf {
+    let proj_dirs = ProjectDirs::from("org", "example", "rpix")
+        .expect("Could not determine XDG data dir");
+    let data_dir = proj_dirs.data_dir(); // typically $XDG_DATA_HOME/rpix
+    data_dir.join("chromium")
+}
+
 /// Checks if a byte slice is a URL (http, https, file)
 fn is_url(s: &[u8]) -> bool {
     s.starts_with(b"http://") || s.starts_with(b"https://") || s.starts_with(b"file://")
@@ -351,7 +360,15 @@ fn render_html_chrome(data: &[u8]) -> Result<DynamicImage> {
     };
 
     // automatically fetch chromium executable using LaunchOptions
-    let browser = Browser::new(LaunchOptions::default())?;
+    let user_data_dir = chromium_path();
+    std::fs::create_dir_all(&user_data_dir)?;
+
+    let browser = Browser::new(LaunchOptions {
+        headless: true,
+        path: None,
+        user_data_dir: Some(user_data_dir),
+        ..Default::default()
+    })?;
     let tab = browser.new_tab()?;
 
     tab.navigate_to(&url)?;

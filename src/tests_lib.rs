@@ -9,6 +9,7 @@ const WHITE: Rgba<u8> = Rgba([255, 255, 255, 255]);
 const BLACK: Rgba<u8> = Rgba([0, 0, 0, 255]);
 const TRANSPARENT: Rgba<u8> = Rgba([0, 0, 0, 0]);
 
+const RANDOM_DATA: &[u8] = include_bytes!("../fixtures/test.random");
 const PNG_DATA: &[u8] = include_bytes!("../fixtures/test.png");
 const SVG_DATA: &[u8] = include_bytes!("../fixtures/test.svg");
 const PDF_DATA: &[u8] = include_bytes!("../fixtures/test.pdf");
@@ -234,7 +235,7 @@ fn test_render_html_chrome(#[case] html_data: &[u8]) {
 }
 
 #[rstest]
-#[case(b"\x76\xcf")] // non-utf-8
+#[case(RANDOM_DATA)] // non-utf-8
 fn test_render_html_chrome_invalid(#[case] html_data: &[u8]) {
     let result = render_html_chrome(html_data);
     assert!(result.is_err(), "HTML generation should fail");

@@ -2078,6 +2078,7 @@ dependencies = [
  "base64",
  "clap",
  "crossterm",
+ "directories",
  "flate2",
  "headless_chrome",
  "image",

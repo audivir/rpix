@@ -45,10 +45,21 @@ fn xdg_pref_project_dirs() -> Subdirs {
 #[cfg(target_os = "macos")]
 fn xdg_pref_project_dirs() -> Subdirs {
     // use macos home dir, but linux style paths
-    let home_dir = dirs_sys::home_dir().expect("Could not determine home directory");
+    let home_dir = directories::home_dir().expect("Could not determine home directory");
+
+    let cache_dir = env::var_os("XDG_CACHE_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .unwrap_or_else(|| home_dir.join(".cache"));
+
+    let data_dir = env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .unwrap_or_else(|| home_dir.join(".local/share"));
+
     Subdirs {
-        cache_dir: env::var_os("XDG_CACHE_HOME") .and_then(dirs_sys::is_absolute_path).unwrap_or_else(|| home_dir.join(".cache")),
-        data_dir: env::var_os("XDG_DATA_HOME") .and_then(dirs_sys::is_absolute_path).unwrap_or_else(|| home_dir.join(".local/share")),
+        cache_dir,
+        data_dir,
     }
 }
 

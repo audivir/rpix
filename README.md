@@ -13,6 +13,13 @@ A image and document viewer for the Kitty Terminal Graphics Protocol.
 
 ## Installation
 
+### Prerequisites
+
+- For PDF support, download `libpdfium.dylib` or `libpdfium.so` from [pdfium](https://github.com/bblanchon/pdfium-binaries/releases) and copy it in the same directory as `kv`, one of the system library paths, or add the directory containing `libpdfium` library to `DYLD_LIBRARY_PATH` on macOS or `LD_LIBRARY_PATH` on Linux.
+- For HTML support, `headless_chrome` automatically downloads a chrome binary on the first run.
+- For Office support, `soffice` (from `libreoffice`) and `libpdfium` are required.
+  > Caveats: Office files are cached per default for performance. Use `-n` to disable caching.
+
 ### From Source
 
 Ensure you have Rust installed.
@@ -23,12 +30,6 @@ cd kv
 cargo build --release
 cp target/release/kv ~/.local/bin/
 ```
-
-For PDF support, download `libpdfium.dylib` or `libpdfium.so` from [pdfium](https://github.com/bblanchon/pdfium-binaries/releases) and copy it in the same directory as `kv`, one of the system library paths, or add the directory containing `libpdfium` library to `DYLD_LIBRARY_PATH` on macOS or `LD_LIBRARY_PATH` on Linux.
-For HTML support, `headless_chrome` automatically downloads a chrome binary on the first run.
-For Office support, `soffice` (from `libreoffice`) and `libpdfium` are required.
-
-> Caveats
 
 ## Usage
 
@@ -91,5 +92,6 @@ MIT License. See [LICENSE](LICENSE) for details.
 
 - Based on the logic of [tpix](https://github.com/jesvedberg/tpix) by Jesper Svedberg (MIT License).
 - Uses [resvg](https://github.com/RazrFalcon/resvg) for SVG rendering (MIT License).
+- Uses [bat](https://github.com/sharkdp/bat) for text rendering (MIT License).
 - Uses pre-compiled [pdfium-binaries](https://github.com/bblanchon/pdfium-binaries/releases) for PDF rendering (MIT License).
 - "fixtures/semi_transparent.png" is by Nguyễn Trí Minh Hoàng and is licensed under CC BY-SA 3.0.

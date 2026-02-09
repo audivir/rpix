@@ -119,7 +119,7 @@ struct Config {
     background: bool,
 
     /// Set background color as hex string
-    #[arg(short = 'C', long, default_value = "#FFFFFF", requires = "background")]
+    #[arg(short = 'c', long, default_value = "#FFFFFF", requires = "background")]
     color: String,
 
     /// Set transmission mode
@@ -155,7 +155,7 @@ struct Config {
     no_newline: bool,
 
     /// Do not cache office files
-    #[arg(short = 'n', long)]
+    #[arg(short = 'C', long)]
     no_cache: bool,
 
     /// Print filename before each input
@@ -166,9 +166,9 @@ struct Config {
     #[arg(short = 't', long)]
     tty: bool,
 
-    /// Clear terminal (remove all images)
-    #[arg(short = 'c', long)]
-    clear: bool,
+    /// Remove all images from terminal
+    #[arg(short = 'R', long)]
+    remove: bool,
 }
 
 fn render_image(
@@ -310,7 +310,7 @@ fn run(
     is_input_available: bool,
     cache_dir: Option<PathBuf>,
 ) -> Result<i32> {
-    if conf.clear {
+    if conf.remove {
         write!(writer, "\x1b_Ga=d\x1b\\")?;
         return Ok(0);
     }

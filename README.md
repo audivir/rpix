@@ -70,7 +70,7 @@ kv document.docx
 | `-r`, `--resize`     | Resize image to fill terminal.                                                        |
 | `-n`, `--noresize`   | Disable automatic resizing (show original size).                                      |
 | `-b`, `--background` | Add a background (useful for transparent images).                                     |
-| `-C`, `--color`      | Set background color as hex string. Default: #FFFFFF.                                 |
+| `-c`, `--color`      | Set background color as hex string. Default: #FFFFFF.                                 |
 | `-m`, `--mode`       | Set transmission mode (png, zlib, raw). Default: png.                                 |
 | `-o`, `--output`     | Output to file as png, instead of kitty.                                              |
 | `-x`, `--overwrite`  | Overwrite existing output file.                                                       |
@@ -79,10 +79,10 @@ kv document.docx
 | `-A`, `--all`        | Select all pages.                                                                     |
 | `-l`, `--language`   | Set language for syntax highlighting (e.g. "toml").                                   |
 | `-N`, `--no-newline` | Do not add a newline after text data missing each input. (might mess up the terminal) |
-| `-n`, `--no-cache`   | Do not cache office files.                                                            |
+| `-C`, `--no-cache`   | Do not cache office files.                                                            |
 | `-p`, `--printname`  | Print the filename before image.                                                      |
 | `-t`, `--tty`        | Force tty (ignore stdin check).                                                       |
-| `-c`, `--clear`      | Clear the terminal (remove all images).                                               |
+| `-R`, `--remove`     | Remove all images from terminal.                                                      |
 
 ## License
 

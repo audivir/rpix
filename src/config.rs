@@ -1,7 +1,7 @@
+use crate::InputType;
+use anyhow::{Context, Result};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use anyhow::{Result, Context};
-use crate::InputType;
 
 #[cfg(target_os = "macos")]
 use std::env;
@@ -12,8 +12,8 @@ use directories::ProjectDirs;
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct Plugin {
     pub extensions: Vec<String>,
-    pub magic_bytes: Option<Vec<String>>, 
-    pub output: InputType,               
+    pub magic_bytes: Option<Vec<String>>,
+    pub output: InputType,
     pub path: String,
     pub placeholder: Option<String>,
 }
@@ -32,7 +32,8 @@ pub struct Subdirs {
 
 #[cfg(not(target_os = "macos"))]
 pub fn kv_project_dirs() -> Subdirs {
-    let project_dirs = ProjectDirs::from("de", "audivir", "kv").expect("Could not determine XDG directories");
+    let project_dirs =
+        ProjectDirs::from("de", "audivir", "kv").expect("Could not determine XDG directories");
     Subdirs {
         cache_dir: project_dirs.cache_dir().to_path_buf(),
         data_dir: project_dirs.data_dir().to_path_buf(),
@@ -92,7 +93,12 @@ pub fn load_plugins() -> HashMap<String, Plugin> {
     }
 }
 
-pub fn has_extension_or_magic_bytes(data: &[u8], extension: &str, magic_hex_list: &[String], extensions: &[String]) -> bool {
+pub fn has_extension_or_magic_bytes(
+    data: &[u8],
+    extension: &str,
+    magic_hex_list: &[String],
+    extensions: &[String],
+) -> bool {
     for hex_str in magic_hex_list {
         // convert hex string to byte vector
         if let Ok(magic) = hex::decode(hex_str) {
@@ -109,14 +115,13 @@ pub fn has_extension_or_magic_bytes(data: &[u8], extension: &str, magic_hex_list
 
 pub fn open_config() -> Result<()> {
     let path = get_config_path();
-    
+
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .context("Failed to create configuration directory")?;
+        std::fs::create_dir_all(parent).context("Failed to create configuration directory")?;
     }
 
     if !path.exists() {
-            let template = r#"# KV plugins configuration
+        let template = r#"# KV plugins configuration
 #
 # Define custom handlers for file extensions.
 #
@@ -134,11 +139,11 @@ pub fn open_config() -> Result<()> {
 # output = "png"
 # path = "my-converter"
 "#;
-            std::fs::write(&path, template).context("Failed to create plugins.toml")?;
-            eprintln!("Created default config file at: {}", path.display());
-        }
-
-        println!("{}", path.display());
-
-        Ok(())
+        std::fs::write(&path, template).context("Failed to create plugins.toml")?;
+        eprintln!("Created default config file at: {}", path.display());
     }
+
+    println!("{}", path.display());
+
+    Ok(())
+}

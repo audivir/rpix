@@ -1,10 +1,10 @@
+use crate::{pretty_print, send_image};
 use anyhow::{Context, Result};
 use clap::{Parser, ValueEnum};
 use kv::*;
-use std::io::{self, Read, Write, BufWriter};
+use std::io::{self, BufWriter, Read, Write};
 use std::path::PathBuf;
 use tempfile::NamedTempFile;
-use crate::{send_image,pretty_print};
 
 #[cfg(test)]
 mod tests_main;
@@ -162,11 +162,11 @@ struct Config {
     tty: bool,
 
     /// Remove all images from terminal
-    #[arg(short = 'R', long, conflicts_with="plugins")]
+    #[arg(short = 'R', long, conflicts_with = "plugins")]
     remove: bool,
 
     /// Print the plugins configuration file path (will be created if it doesn't exist)
-    #[arg(long, conflicts_with="remove")]
+    #[arg(long, conflicts_with = "remove")]
     plugins: bool,
 }
 
@@ -228,7 +228,10 @@ fn run(
     } else if conf.fullheight {
         ResizeMode::FitHeight
     } else if conf.width.is_some() || conf.height.is_some() {
-        ResizeMode::Manual { width: conf.width, height: conf.height }
+        ResizeMode::Manual {
+            width: conf.width,
+            height: conf.height,
+        }
     } else {
         ResizeMode::ClipTerminal
     };
@@ -256,7 +259,7 @@ fn run(
         background_color,
     };
 
-if use_stdin {
+    if use_stdin {
         if conf.printname {
             writeln!(err_writer, "stdin")?;
         }
@@ -363,7 +366,7 @@ fn prepare_writer(
                 .as_file()
                 .try_clone()
                 .context("Failed to clone temp file")?;
-            
+
             let writer: Box<dyn Write> = Box::new(BufWriter::new(file));
             Ok((writer, Some((tempfile, absolute_path))))
         }

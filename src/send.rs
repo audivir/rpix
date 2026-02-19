@@ -34,7 +34,7 @@ pub fn send_image(
             let mut buffer = Vec::new();
             let (width, height) = img.dimensions();
             let color_type = img.color();
-            
+
             // scope ensures flush
             {
                 let encoder = PngEncoder::new(&mut buffer);
@@ -43,10 +43,8 @@ pub fn send_image(
                     .context("Failed to encode image to PNG")?;
             }
             buffer
-        }     
-        Mode::Raw => {
-            img.to_rgba8().into_raw()
         }
+        Mode::Raw => img.to_rgba8().into_raw(),
         Mode::Zlib => {
             let raw_bytes = img.to_rgba8().into_raw();
             let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
@@ -70,14 +68,14 @@ pub fn send_image(
 
     let total_len = payload.len();
     let mut offset = 0;
-    
+
     // reusable buffer
     let mut b64_buffer = String::with_capacity(KITTY_CHUNK_SIZE + 4);
 
     while offset < total_len {
         let end = (offset + INPUT_CHUNK_SIZE).min(total_len);
         let chunk_data = &payload[offset..end];
-        
+
         // encode chunk to base64
         b64_buffer.clear();
         general_purpose::STANDARD.encode_string(chunk_data, &mut b64_buffer);
@@ -85,7 +83,7 @@ pub fn send_image(
         let more = if end < total_len { 1 } else { 0 };
 
         write!(writer, "\x1b_G")?;
-        
+
         // send control header only on the first chunk
         if offset == 0 {
             write!(writer, "{},", header)?;
@@ -94,7 +92,7 @@ pub fn send_image(
         // send payload
         write!(writer, "m={};", more)?;
         writer.write_all(b64_buffer.as_bytes())?;
-        
+
         // end escape sequence
         write!(writer, "\x1b\\")?;
 
@@ -115,11 +113,11 @@ pub fn pretty_print(
     newline: bool,
 ) -> Result<()> {
     let mut printer = PrettyPrinter::new();
-    
+
     match input {
         PrinterInput::File(path) => {
             printer.input_file(path);
-        },
+        }
         PrinterInput::Data(data) => {
             // requires a reader
             printer.input(Input::from_reader(Box::new(Cursor::new(data))));

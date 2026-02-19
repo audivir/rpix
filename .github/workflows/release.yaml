@@ -48,6 +48,7 @@ jobs:
         run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Build Binary
+        shell: bash
         run: |
           BUILDER="cargo"
           if [ "${{ matrix.use-cross }}" = "true" ]; then BUILDER="cross"; fi

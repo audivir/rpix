@@ -10,54 +10,61 @@ permissions:
 
 jobs:
   build:
-    name: Build for ${{ matrix.target }}
-    runs-on: ubuntu-latest
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - target: x86_64-unknown-linux-gnu
-            os: linux
-            arch: amd64
           - target: aarch64-unknown-linux-gnu
-            os: linux
-            arch: arm64
-          - target: x86_64-apple-darwin
-            os: darwin
-            arch: amd64
+            os: ubuntu-latest
+            use-cross: true
+            name: kv-linux-arm64
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            use-cross: true
+            name: kv-linux-amd64
           - target: aarch64-apple-darwin
-            os: darwin
-            arch: arm64
+            os: macos-latest
+            use-cross: false
+            name: kv-darwin-arm64
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            use-cross: false
+            name: kv-darwin-amd64
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Rust Toolchain
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
           targets: ${{ matrix.target }}
 
-      - name: Install Cross-Compilation Tools
+      - name: Install Cross
+        if: matrix.use-cross
         run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Build Binary
         run: |
-          cross build --release --target ${{ matrix.target }}
+          BUILDER="cargo"
+          if [ "${{ matrix.use-cross }}" = "true" ]; then BUILDER="cross"; fi
 
-          # Setup binary names for artifact upload
-          EXT=""
-          if [[ "${{ matrix.target }}" == *"windows"* ]]; then EXT=".exe"; fi
+          $BUILDER build --release --target ${{ matrix.target }}
 
-          # Move and rename binary for easy identification
-          mkdir -p ./artifacts
-          cp target/${{ matrix.target }}/release/kv${EXT} ./artifacts/kv-${{ matrix.os }}-${{ matrix.arch }}${EXT}
+          BIN_NAME="kv"
+          if [[ "${{ matrix.target }}" == *"windows"* ]]; then BIN_NAME="kv.exe"; fi
+
+          mkdir -p ./dist
+          cp target/${{ matrix.target }}/release/$BIN_NAME ./dist/
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binary-${{ matrix.os }}-${{ matrix.arch }}
-          path: ./artifacts/kv-*
+          name: ${{ matrix.target }}
+          path: dist/*
           retention-days: 1
 
   release:
@@ -68,11 +75,10 @@ jobs:
       - name: Download all binaries
         uses: actions/download-artifact@v4
         with:
-          pattern: binary-*
-          path: dist
+          path: all-dist
           merge-multiple: true
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
+          files: all-dist/*

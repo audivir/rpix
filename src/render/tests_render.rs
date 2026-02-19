@@ -2,16 +2,11 @@ use super::*;
 use image::{GenericImageView, Rgba};
 use rstest::rstest;
 
-#[cfg(feature = "svg")]
 const SVG_DATA: &[u8] = include_bytes!("../../fixtures/test.svg");
-#[cfg(feature = "pdf")]
 const PDF_DATA: &[u8] = include_bytes!("../../fixtures/test.pdf");
-#[cfg(feature = "html")]
 const HTML_DATA: &[u8] = include_bytes!("../../fixtures/test.html");
-#[cfg(feature = "html")]
 const RANDOM_DATA: &[u8] = include_bytes!("../../fixtures/test.random");
 
-#[cfg(feature = "svg")]
 #[test]
 fn test_render_svg() {
     let result = render_svg(SVG_DATA);
@@ -25,7 +20,6 @@ fn test_render_svg() {
     assert_eq!(pixel, Rgba([102, 102, 102, 255]));
 }
 
-#[cfg(feature = "svg")]
 #[test]
 fn test_render_svg_invalid() {
     let svg_data = br#"<svg>invalid"#;
@@ -34,7 +28,6 @@ fn test_render_svg_invalid() {
     assert!(result.is_err(), "SVG generation failed");
 }
 
-#[cfg(feature = "pdf")]
 #[rstest]
 #[case(None, 100, None, 100)]
 #[case(None, 100, Some(vec![0]), 100)]
@@ -55,7 +48,6 @@ fn test_render_pdf(
     assert_eq!(pixel, Rgba([255, 255, 255, 255]));
 }
 
-#[cfg(feature = "pdf")]
 #[test]
 fn test_render_pdf_invalid() {
     let pdf_data = br#"%PDF-1.4
@@ -65,7 +57,6 @@ invalid"#;
     assert!(result.is_err(), "PDF generation failed");
 }
 
-#[cfg(feature = "pdf")]
 #[rstest]
 #[case(vec![])]
 #[case(vec![2])]
@@ -74,7 +65,6 @@ fn test_render_pdf_out_of_range(#[case] page_indices: Vec<u16>) {
     assert!(result.is_err(), "PDF generation failed");
 }
 
-#[cfg(feature = "html")]
 #[rstest]
 #[case(HTML_DATA)]
 #[case(b"fixtures/test.html")]
@@ -99,7 +89,6 @@ fn test_render_html_chrome(#[case] html_data: &[u8]) {
     assert!(red_found, "Red pixel not found");
 }
 
-#[cfg(feature = "html")]
 #[rstest]
 #[case(RANDOM_DATA)] // non-utf-8
 fn test_render_html_chrome_invalid(#[case] html_data: &[u8]) {

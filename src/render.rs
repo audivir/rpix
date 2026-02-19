@@ -6,22 +6,15 @@ use std::io::Write;
 
 use crate::{calculate_dimensions, ResizeMode, CacheMode,kv_project_dirs, Plugin};
 
-#[cfg(feature = "pdf")]
 use pdfium_render::prelude::{PdfRenderConfig, Pdfium};
 
-#[cfg(feature = "html")]
 use crate::{InputType, KvContext};
-#[cfg(feature = "html")]
 use base64::{engine::general_purpose, Engine as _};
-#[cfg(feature = "html")]
 use std::path::PathBuf;
 
-#[cfg(feature = "html")]
 use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption;
-#[cfg(feature = "html")]
 use headless_chrome::{Browser, LaunchOptions};
 
-#[cfg(feature = "office")]
 use sha2::{Digest, Sha256};
 
 #[cfg(test)]
@@ -68,7 +61,6 @@ pub fn render_image(ctx: &KvContext, img: DynamicImage) -> Result<DynamicImage> 
     Ok(final_img)
 }
 
-#[cfg(feature = "svg")]
 pub fn render_svg(ctx: &KvContext, data: &[u8]) -> Result<DynamicImage> {
     let mut fontdb = usvg::fontdb::Database::new();
     fontdb.load_system_fonts();
@@ -106,7 +98,6 @@ pub fn render_svg(ctx: &KvContext, data: &[u8]) -> Result<DynamicImage> {
     Ok(DynamicImage::ImageRgba8(buffer))
 }
 
-#[cfg(feature = "pdf")]
 pub fn render_pdf(ctx: &KvContext, data: &[u8]) -> Result<DynamicImage> {
     let width = match ctx.resize_mode {
         ResizeMode::Manual { width: Some(w), .. } => w,
@@ -163,22 +154,18 @@ pub fn render_pdf(ctx: &KvContext, data: &[u8]) -> Result<DynamicImage> {
     render_image(ctx, DynamicImage::ImageRgba8(combined))
 }
 
-#[cfg(feature = "html")]
 fn is_url(s: &[u8]) -> bool {
     s.starts_with(b"http://") || s.starts_with(b"https://") || s.starts_with(b"file://")
 }
 
-#[cfg(feature = "html")]
 fn is_url_str(s: &str) -> bool {
     s.starts_with("http://") || s.starts_with("https://") || s.starts_with("file://")
 }
 
-#[cfg(feature = "html")]
 pub fn is_html(ctx: &KvContext, extension: &str, s: &[u8]) -> bool {
     ctx.input_type == InputType::Html || extension == "html" || extension == "htm" || is_url(s)
 }
 
-#[cfg(feature = "html")]
 pub fn render_html_chrome(ctx: &KvContext, data: &[u8]) -> Result<DynamicImage> {
     let data_str = std::str::from_utf8(data)?;
     let url: String = if is_url_str(data_str) {
@@ -212,14 +199,11 @@ pub fn render_html_chrome(ctx: &KvContext, data: &[u8]) -> Result<DynamicImage> 
     render_image(ctx, img)
 }
 
-
-
 #[cfg(target_os = "windows")]
 mod win;
 #[cfg(target_os = "windows")]
 use win as sys;
 
-#[cfg(feature = "office")]
 pub fn render_office(
     ctx: &KvContext,
     data: &[u8],
@@ -242,7 +226,7 @@ pub fn render_office(
         std::fs::create_dir_all(&target_dir)
             .context("Failed to create cache directory")?;
             
-        // Check if cached PDF already exists
+        // check if cached PDF already exists
         let cache_path = target_dir.join(format!("{}.pdf", hash_str));
         if cache_path.exists() {
             let cache_data = std::fs::read(&cache_path)?;
@@ -330,19 +314,11 @@ pub fn render_plugin(ctx: &KvContext, data: &[u8], plugin: &Plugin) -> Result<Dy
     }
 
     match plugin.output {
-        #[cfg(feature = "svg")]
         InputType::Svg => render_svg(ctx, &output.stdout),
-
-        #[cfg(feature = "pdf")]
         InputType::Pdf => render_pdf(ctx, &output.stdout),
-
-        #[cfg(feature = "html")]
         InputType::Html => render_html_chrome(ctx, &output.stdout),
-
-        // TODO: handle image, text, office, etc.
         _ => {
-            // Fallback: Try to load as image
-             let img = image::load_from_memory(&output.stdout)
+            let img = image::load_from_memory(&output.stdout)
                  .context("Failed to decode plugin output as image")?;
              render_image(ctx, img)
         }

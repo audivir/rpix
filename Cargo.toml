@@ -1,6 +1,6 @@
 [package]
 name = "kv"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 
 [dependencies]
@@ -22,24 +22,16 @@ toml = "1.0"
 shell-words = "1.1"
 
 # svg
-resvg = { version = "0.46", optional = true }
-usvg = { version = "0.46", optional = true }
-tiny-skia = { version = "0.11", optional = true }
+resvg = { version = "0.46" }
+usvg = { version = "0.46" }
+tiny-skia = { version = "0.11" }
 # pdf
-pdfium-render = { version = "0.8", optional = true }
+pdfium-render = { version = "0.8" }
 # html
-headless_chrome = { version = "1.0", features = ["fetch"], optional = true }
+headless_chrome = { version = "1.0", features = ["fetch"] }
 # office
-sha2 = { version = "0.10.9", optional = true }
-hex = { version = "0.4", optional = true }
-
-[features]
-svg = ["dep:resvg", "dep:usvg", "dep:tiny-skia"]
-pdf = ["dep:pdfium-render"]
-html = ["dep:headless_chrome"]
-office = ["dep:sha2", "pdf", "dep:hex"]
-
-default = ["svg", "pdf", "html", "office"]
+sha2 = { version = "0.10.9" }
+hex = { version = "0.4" }
 
 [dev-dependencies]
 rstest = "0.26.1"

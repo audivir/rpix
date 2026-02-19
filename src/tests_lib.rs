@@ -6,7 +6,6 @@ use rstest::rstest;
 use std::path::PathBuf;
 
 const PNG_DATA: &[u8] = include_bytes!("../fixtures/test.png");
-#[cfg(feature = "svg")]
 const SVG_DATA: &[u8] = include_bytes!("../fixtures/test.svg");
 
 fn default_ctx() -> KvContext {
@@ -164,7 +163,6 @@ fn test_load_file_invalid(
     assert_eq!(result.unwrap_err().to_string(), err_msg);
 }
 
-#[cfg(feature = "svg")]
 #[rstest]
 #[case(
     PathBuf::from("fixtures/test.png"),
@@ -197,7 +195,6 @@ fn test_load_data(#[case] data: &[u8]) {
     assert!(result.is_ok());
 }
 
-#[cfg(feature = "svg")]
 #[rstest]
 #[case("fixtures/test.svg".as_bytes())]
 #[case(SVG_DATA)]
@@ -224,7 +221,6 @@ fn test_load_data_invalid(#[case] data: &[u8], #[case] err_msg: Option<&str>) {
     assert_eq!(result.unwrap_err().to_string(), err_msg.unwrap());
 }
 
-#[cfg(feature = "svg")]
 #[rstest]
 #[case("<svg>invalid".as_bytes(), Some("Failed to parse SVG"))]
 fn test_load_data_invalid_svg(#[case] data: &[u8], #[case] err_msg: Option<&str>) {

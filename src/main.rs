@@ -31,13 +31,9 @@ enum InputTypeOption {
     Auto,
     Image,
     Text,
-    #[cfg(feature = "svg")]
     Svg,
-    #[cfg(feature = "pdf")]
     Pdf,
-    #[cfg(feature = "html")]
     Html,
-    #[cfg(feature = "office")]
     Office,
 }
 
@@ -47,13 +43,9 @@ impl From<InputTypeOption> for InputType {
             InputTypeOption::Auto => InputType::Auto,
             InputTypeOption::Image => InputType::Image,
             InputTypeOption::Text => InputType::Text,
-            #[cfg(feature = "svg")]
             InputTypeOption::Svg => InputType::Svg,
-            #[cfg(feature = "pdf")]
             InputTypeOption::Pdf => InputType::Pdf,
-            #[cfg(feature = "html")]
             InputTypeOption::Html => InputType::Html,
-            #[cfg(feature = "office")]
             InputTypeOption::Office => InputType::Office,
         }
     }

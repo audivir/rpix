@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build for ${{ matrix.target }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: linux
+            arch: amd64
+          - target: aarch64-unknown-linux-gnu
+            os: linux
+            arch: arm64
+          - target: x86_64-apple-darwin
+            os: darwin
+            arch: amd64
+          - target: aarch64-apple-darwin
+            os: darwin
+            arch: arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+
+      - name: Install Cross-Compilation Tools
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build Binary
+        run: |
+          cross build --release --target ${{ matrix.target }}
+
+          # Setup binary names for artifact upload
+          EXT=""
+          if [[ "${{ matrix.target }}" == *"windows"* ]]; then EXT=".exe"; fi
+
+          # Move and rename binary for easy identification
+          mkdir -p ./artifacts
+          cp target/${{ matrix.target }}/release/kv${EXT} ./artifacts/kv-${{ matrix.os }}-${{ matrix.arch }}${EXT}
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.os }}-${{ matrix.arch }}
+          path: ./artifacts/kv-*
+          retention-days: 1
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all binaries
+        uses: actions/download-artifact@v4
+        with:
+          pattern: binary-*
+          path: dist
+          merge-multiple: true
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*

@@ -94,7 +94,7 @@ pub fn load_plugins() -> HashMap<String, Plugin> {
 
 pub fn has_extension_or_magic_bytes(data: &[u8], extension: &str, magic_hex_list: &[String], extensions: &[String]) -> bool {
     for hex_str in magic_hex_list {
-        // Convert hex string to byte vector
+        // convert hex string to byte vector
         if let Ok(magic) = hex::decode(hex_str) {
             if data.len() >= magic.len() && &data[0..magic.len()] == magic.as_slice() {
                 return true;

@@ -1,4 +1,3 @@
-// ==> src/send.rs <==
 use anyhow::{Context, Result};
 use base64::{engine::general_purpose, Engine as _};
 use bat::{Input, PrettyPrinter};
@@ -36,7 +35,7 @@ pub fn send_image(
             let (width, height) = img.dimensions();
             let color_type = img.color();
             
-            // Scope ensures flush
+            // scope ensures flush
             {
                 let encoder = PngEncoder::new(&mut buffer);
                 encoder
@@ -72,14 +71,14 @@ pub fn send_image(
     let total_len = payload.len();
     let mut offset = 0;
     
-    // Reusable buffer
+    // reusable buffer
     let mut b64_buffer = String::with_capacity(KITTY_CHUNK_SIZE + 4);
 
     while offset < total_len {
         let end = (offset + INPUT_CHUNK_SIZE).min(total_len);
         let chunk_data = &payload[offset..end];
         
-        // Encode chunk to base64
+        // encode chunk to base64
         b64_buffer.clear();
         general_purpose::STANDARD.encode_string(chunk_data, &mut b64_buffer);
 
@@ -87,22 +86,22 @@ pub fn send_image(
 
         write!(writer, "\x1b_G")?;
         
-        // Send control header only on the first chunk
+        // send control header only on the first chunk
         if offset == 0 {
             write!(writer, "{},", header)?;
         }
 
-        // Send payload
+        // send payload
         write!(writer, "m={};", more)?;
         writer.write_all(b64_buffer.as_bytes())?;
         
-        // End Escape Sequence
+        // end escape sequence
         write!(writer, "\x1b\\")?;
 
         offset = end;
     }
 
-    // Ensure terminal is clean
+    // ensure terminal is clean
     writeln!(writer)?;
     writer.flush()?;
 

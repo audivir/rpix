@@ -60,13 +60,9 @@ pub enum InputType {
     Auto,
     Image,
     Text,
-    #[cfg(feature = "svg")]
     Svg,
-    #[cfg(feature = "pdf")]
     Pdf,
-    #[cfg(feature = "html")]
     Html,
-    #[cfg(feature = "office")]
     Office,
 }
 
@@ -100,7 +96,7 @@ pub fn get_term_size() -> (u32, u32) {
 
             let height = if size.height > 0 {
                 let h = size.height as u32;
-                // Adjust for prompt line and padding if we have column info
+                // adjust for prompt line and padding if we have column info
                 if cols > 0 { h * (rows.saturating_sub(2)) / rows } else { h }
             } else if rows > 0 {
                 (rows.saturating_sub(2)) * 20
@@ -138,7 +134,7 @@ pub fn calculate_dimensions(
     let (w, h) = (img_dims.0 as f64, img_dims.1 as f64);
     let (tw, th) = (term_size.0 as f64, term_size.1 as f64);
 
-    // Helper to calculate aspect ratio scaling
+    // calculate aspect ratio scaling
     let scale_to_width = |target_w: f64| (target_w, h * (target_w / w));
     let scale_to_height = |target_h: f64| (w * (target_h / h), target_h);
 
@@ -167,7 +163,7 @@ pub fn calculate_dimensions(
             (Some(target_w), Some(target_h)) => (target_w as f64, target_h as f64),
             (Some(target_w), None) => scale_to_width(target_w as f64),
             (None, Some(target_h)) => scale_to_height(target_h as f64),
-            (None, None) => (w, h), // Should not happen given CLI logic, but safe fallback
+            (None, None) => (w, h), // should not happen
         },
     };
 
@@ -215,19 +211,18 @@ pub fn parse_pages(pages: &str) -> Result<Option<Vec<u16>>> {
 }
 
 pub fn load_file(ctx: &KvContext, path: &Path) -> Result<LoadResult> {
-    // Robustly handle extensions, even if non-UTF8 (though comparing to str requires utf8)
+    // handle extensions, might fail if non-UTF8
     let extension = path
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("")
         .to_lowercase();
 
-    #[cfg(feature = "html")]
     {
-        // Safe string conversion for URL check
+        // string conversion for URL check
         let path_lossy = path.to_string_lossy();
         if is_html(ctx, &extension, path_lossy.as_bytes()) {
-            // Re-use the bytes of the path string strictly for HTML rendering
+            // use the bytes of the path string strictly for HTML rendering
             let img = render_html_chrome(ctx, path_lossy.as_bytes())?;
             return Ok(LoadResult::Image(img));
         }
@@ -258,7 +253,6 @@ pub fn load_data(ctx: &KvContext, data: &[u8], extension: &str) -> Result<LoadRe
         return Ok(LoadResult::Image(render_image(ctx, img)?));
     }
 
-    #[cfg(feature = "svg")]
     if ctx.input_type == InputType::Svg
         || extension == "svg"
         || data.starts_with(b"<svg")
@@ -267,19 +261,15 @@ pub fn load_data(ctx: &KvContext, data: &[u8], extension: &str) -> Result<LoadRe
         return Ok(LoadResult::Image(render_svg(ctx, data)?));
     }
 
-    #[cfg(feature = "pdf")]
     if ctx.input_type == InputType::Pdf || extension == "pdf" || data.starts_with(b"%PDF") {
         return Ok(LoadResult::Image(render_pdf(ctx, data)?));
     }
-
-    #[cfg(feature = "office")]
     if ctx.input_type == InputType::Office
         || ["doc", "docx", "xls", "xlsx", "ppt", "pptx"].contains(&extension)
     {
         return Ok(LoadResult::Image(render_office(ctx, data, extension)?));
     }
 
-    #[cfg(feature = "html")]
     if is_html(ctx, extension, data)
         || data.starts_with(b"<html")
         || data.starts_with(b"<!DOCTYPE html")
@@ -287,21 +277,22 @@ pub fn load_data(ctx: &KvContext, data: &[u8], extension: &str) -> Result<LoadRe
         return Ok(LoadResult::Image(render_html_chrome(ctx, data)?));
     }
 
-    // Fallback for InputType::Auto
+    // fallback for InputType::Auto
     match image::load_from_memory(data) {
         Ok(img) => Ok(LoadResult::Image(render_image(ctx, img)?)),
         Err(err) => {
-            // Check if it's a valid UTF-8 string that points to a file path
+            // check if it's a valid UTF-8 string that points to a file path
             if let Ok(text) = std::str::from_utf8(data) {
                 let path_str = text.trim();
-                // Basic check to avoid treating random text as paths
+                // Posix paths might contain \n, but this is so rare, we can ignore it for now
+                // check to avoid treating random text as paths
                 if !path_str.contains('\n') && !path_str.is_empty() {
                     let path = PathBuf::from(path_str);
                     if path.exists() && path.is_file() {
                         return load_file(ctx, &path);
                     }
                 }
-                // Determine it is just text data
+                // determine it is just text data
                 return Ok(LoadResult::Data(data.to_vec()));
             }
             Err(anyhow::anyhow!("Failed to decode input: {}", err))

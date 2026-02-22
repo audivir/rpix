@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use image::imageops::FilterType;
 use image::{DynamicImage, GenericImage, GenericImageView, Rgba, RgbaImage};
-use std::io::{Read, Write};
+use std::io::Write;
 use std::process::{Command, Stdio};
 
 use crate::{calculate_dimensions, kv_project_dirs, CacheMode, Plugin, ResizeMode};
@@ -355,21 +355,18 @@ pub fn render_plugin(ctx: &KvContext, data: &[u8], plugin: &Plugin) -> Result<Dy
         drop(stdin); // Close stdin to assure no more data
     }
 
-    let status = child.wait().context("Plugin execution failed")?;
-    if !status.success() {
-        anyhow::bail!("Plugin exited with error code: {:?}", status.code());
+    let output = child
+        .wait_with_output()
+        .context("Plugin execution failed")?;
+
+    if !output.status.success() {
+        anyhow::bail!("Plugin exited with error code: {:?}", output.status.code());
     }
 
     let output_data = if let Some((_, path)) = output_path_opts {
         std::fs::read(path).context("Failed to read plugin output file")?
     } else {
-        let mut buffer = Vec::new();
-        child
-            .stdout
-            .take()
-            .context("Failed to capture stdout")?
-            .read_to_end(&mut buffer)?;
-        buffer
+        output.stdout
     };
 
     // if output is empty raise error

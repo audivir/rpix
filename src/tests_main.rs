@@ -94,10 +94,7 @@ fn test_resize(
 ) {
     let svg_data = format!(
         "<svg width='{}' height='{}' xmlns='http://www.w3.org/2000/svg'><rect width='{}' height='{}' fill='red'/></svg>",
-        orig_width,
-        orig_height,
-        orig_width,
-        orig_height
+        orig_width, orig_height, orig_width, orig_height
     );
     let mut conf = default_conf();
     conf.mode = ModeOption::Raw; // to get width/height in output

@@ -10,12 +10,15 @@ use std::env;
 use directories::ProjectDirs;
 
 #[derive(Debug, Clone, serde::Deserialize)]
+// rename magic-bytes to magic_bytes and output-placeholder to output_placeholder
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct Plugin {
     pub extensions: Vec<String>,
     pub magic_bytes: Option<Vec<String>>,
     pub output: InputType,
     pub path: String,
     pub placeholder: Option<String>,
+    pub output_placeholder: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -100,14 +103,21 @@ pub fn has_extension_or_magic_bytes(
     extensions: &[String],
 ) -> bool {
     for hex_str in magic_hex_list {
-        // convert hex string to byte vector
-        if let Ok(magic) = hex::decode(hex_str) {
+        // remove spaces and convert hex string to byte vector
+        if let Ok(magic) = hex::decode(hex_str.replace(" ", "")) {
             if data.len() >= magic.len() && &data[0..magic.len()] == magic.as_slice() {
                 return true;
             }
         }
     }
-    if extensions.contains(&extension.to_string()) {
+
+    // remove leading dots from extensions
+    let extensions = extensions
+        .iter()
+        .map(|ext| ext.trim_start_matches('.'))
+        .collect::<Vec<_>>();
+
+    if extensions.contains(&extension) {
         return true;
     }
     false
@@ -130,14 +140,16 @@ pub fn open_config() -> Result<()> {
 # extensions = ["xml"]
 # output = "svg"
 # path = "convert-xml"
-# placeholder = "{}" # Optional: if omitted, input is piped to stdin
+# placeholder = "{}" # Optional: if omitted, data is piped to stdin
+# output-placeholder = "{O}" # Optional: if omitted, output is read from stdout
+
 #
 # Example: Handle binary files with magic bytes
-# [custom-binary]
-# extensions = ["bin"]
-# magic_bytes = ["CAFEBABE"]
-# output = "png"
-# path = "my-converter"
+# [custom-binary] # unique name
+# extensions = ["bin"] # leading dots will be ignored
+# magic-bytes = ["CA FE BA BE"] # spaces will be ignored
+# output = "image" # one of: image, pdf, office, svg, or text
+# path = "my-converter" # correctly quoted path
 "#;
         std::fs::write(&path, template).context("Failed to create plugins.toml")?;
         eprintln!("Created default config file at: {}", path.display());

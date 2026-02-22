@@ -85,6 +85,28 @@ kv document.docx
 | `-R`, `--remove`     | Remove all images from terminal.                                                      |
 | `--plugins`          | Print the plugins configuration file path (will be created if it doesn't exist).      |
 
+## Plugins
+
+You can extend `kv` to support additional file formats by adding external converters to the configuration file. To find or edit your configuration, run:
+
+```bash
+# Open the configuration file in your preferred editor
+nano $(kv --plugins)
+```
+
+For a detailed explanation of the configuration file format, see the header of the configuration file.
+
+### Example: Ghostscript for EPS Support
+
+To render EPS files using `ghostscript`, add the following to your plugin configuration file:
+
+```toml
+[eps-converter]
+extensions = ["eps"]
+output = "image"
+path = "gs -q -dSAFER -dBATCH -dNOPAUSE -sDEVICE=pngalpha -r300 -dEPSCrop -sOutputFile=- -"
+```
+
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.

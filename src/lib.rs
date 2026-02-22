@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use image::{DynamicImage, Rgba};
+use serde;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
-use serde;
 
 mod config;
 pub use config::*;
@@ -38,7 +38,10 @@ pub enum ResizeMode {
     /// -F: Force height to match terminal height, scaling width to preserve aspect ratio.
     FitHeight,
     /// -w / -H: Use one explicit dimension, scale the other to preserve aspect ratio.
-    Manual { width: Option<u32>, height: Option<u32> },
+    Manual {
+        width: Option<u32>,
+        height: Option<u32>,
+    },
     /// Use the original size but clip the image to the terminal size.
     ClipTerminal,
 }
@@ -97,7 +100,11 @@ pub fn get_term_size() -> (u32, u32) {
             let height = if size.height > 0 {
                 let h = size.height as u32;
                 // adjust for prompt line and padding if we have column info
-                if cols > 0 { h * (rows.saturating_sub(2)) / rows } else { h }
+                if cols > 0 {
+                    h * (rows.saturating_sub(2)) / rows
+                } else {
+                    h
+                }
             } else if rows > 0 {
                 (rows.saturating_sub(2)) * 20
             } else {
@@ -113,7 +120,7 @@ pub fn get_term_size() -> (u32, u32) {
 /// Parses a hex string (e.g., "#FFFFFF" or "FFFFFF") into an Rgba color.
 pub fn parse_color(color: &str) -> Result<Rgba<u8>> {
     let hex = color.trim_start_matches('#');
-    
+
     if hex.len() != 6 {
         anyhow::bail!("Invalid color format: must be 6 hex characters (e.g. #FFFFFF)");
     }
@@ -140,7 +147,7 @@ pub fn calculate_dimensions(
 
     let (final_w, final_h) = match mode {
         ResizeMode::Original => (w, h),
-        
+
         ResizeMode::FitTerminal | ResizeMode::ClipTerminal => {
             // if clip terminal is enabled, scale only if the image is larger than the terminal
             if mode == ResizeMode::FitTerminal || (tw > 0.0 && w > tw) || (th > 0.0 && h > th) {
@@ -149,15 +156,23 @@ pub fn calculate_dimensions(
             } else {
                 (w, h)
             }
-        },
+        }
 
         ResizeMode::FitWidth => {
-            if tw > 0.0 { scale_to_width(tw) } else { (w, h) }
-        },
+            if tw > 0.0 {
+                scale_to_width(tw)
+            } else {
+                (w, h)
+            }
+        }
 
         ResizeMode::FitHeight => {
-            if th > 0.0 { scale_to_height(th) } else { (w, h) }
-        },
+            if th > 0.0 {
+                scale_to_height(th)
+            } else {
+                (w, h)
+            }
+        }
 
         ResizeMode::Manual { width, height } => match (width, height) {
             (Some(target_w), Some(target_h)) => (target_w as f64, target_h as f64),
@@ -185,7 +200,10 @@ pub fn parse_pages(pages: &str) -> Result<Option<Vec<u16>>> {
         }
 
         if let Some((start_str, end_str)) = part.split_once('-') {
-            let start: u16 = start_str.trim().parse().context("Invalid page range start")?;
+            let start: u16 = start_str
+                .trim()
+                .parse()
+                .context("Invalid page range start")?;
             let end: u16 = end_str.trim().parse().context("Invalid page range end")?;
 
             if start < 1 || end <= start {
@@ -228,7 +246,8 @@ pub fn load_file(ctx: &KvContext, path: &Path) -> Result<LoadResult> {
         }
     }
 
-    let mut file = File::open(path).with_context(|| format!("Failed to open file: {}", path.display()))?;
+    let mut file =
+        File::open(path).with_context(|| format!("Failed to open file: {}", path.display()))?;
     let mut data = Vec::new();
     file.read_to_end(&mut data)?;
 
@@ -243,7 +262,12 @@ pub fn load_data(ctx: &KvContext, data: &[u8], extension: &str) -> Result<LoadRe
     let plugins = PLUGINS.get_or_init(load_plugins);
 
     for plugin in plugins.values() {
-        if has_extension_or_magic_bytes(data, extension, plugin.magic_bytes.as_ref().unwrap_or(&vec![]), &plugin.extensions) {
+        if has_extension_or_magic_bytes(
+            data,
+            extension,
+            plugin.magic_bytes.as_ref().unwrap_or(&vec![]),
+            &plugin.extensions,
+        ) {
             return Ok(LoadResult::Image(render_plugin(ctx, data, plugin)?));
         }
     }

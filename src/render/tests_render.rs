@@ -2,14 +2,14 @@ use super::*;
 use image::{GenericImageView, Rgba};
 use rstest::rstest;
 
-const SVG_DATA: &[u8] = include_bytes!("../../fixtures/test.svg");
-const PDF_DATA: &[u8] = include_bytes!("../../fixtures/test.pdf");
-const HTML_DATA: &[u8] = include_bytes!("../../fixtures/test.html");
-const RANDOM_DATA: &[u8] = include_bytes!("../../fixtures/test.random");
+const SVG_DATA: &[u8] = include_bytes!("../../tests/fixtures/test.svg");
+const PDF_DATA: &[u8] = include_bytes!("../../tests/fixtures/test.pdf");
+const HTML_DATA: &[u8] = include_bytes!("../../tests/fixtures/test.html");
+const RANDOM_DATA: &[u8] = include_bytes!("../../tests/fixtures/test.random");
 
 #[test]
 fn test_render_svg() {
-    let result = render_svg(SVG_DATA);
+    let result = render_svg(ctx, SVG_DATA);
     assert!(result.is_ok(), "SVG generation failed");
 
     let img = result.unwrap();
@@ -24,7 +24,7 @@ fn test_render_svg() {
 fn test_render_svg_invalid() {
     let svg_data = br#"<svg>invalid"#;
 
-    let result = render_svg(svg_data);
+    let result = render_svg(ctx, svg_data);
     assert!(result.is_err(), "SVG generation failed");
 }
 
@@ -38,7 +38,7 @@ fn test_render_pdf(
     #[case] page_indices: Option<Vec<u16>>,
     #[case] expected_width: u32,
 ) {
-    let result = render_pdf(PDF_DATA, conf_w, term_width, page_indices);
+    let result = render_pdf(ctx, PDF_DATA);
     assert!(result.is_ok(), "PDF generation failed");
 
     let img = result.unwrap();
@@ -53,7 +53,7 @@ fn test_render_pdf_invalid() {
     let pdf_data = br#"%PDF-1.4
 invalid"#;
 
-    let result = render_pdf(pdf_data, None, 100, None);
+    let result = render_pdf(ctx, pdf_data); // , None, 100, None);
     assert!(result.is_err(), "PDF generation failed");
 }
 
@@ -61,7 +61,7 @@ invalid"#;
 #[case(vec![])]
 #[case(vec![2])]
 fn test_render_pdf_out_of_range(#[case] page_indices: Vec<u16>) {
-    let result = render_pdf(PDF_DATA, None, 100, Some(page_indices));
+    let result = render_pdf(ctx, PDF_DATA); // , None, 100, Some(page_indices));
     assert!(result.is_err(), "PDF generation failed");
 }
 
@@ -70,7 +70,7 @@ fn test_render_pdf_out_of_range(#[case] page_indices: Vec<u16>) {
 #[case(b"fixtures/test.html")]
 #[case(b"https://commons.wikimedia.org/wiki/File:Solid_red.png")]
 fn test_render_html_chrome(#[case] html_data: &[u8]) {
-    let result = render_html_chrome(html_data);
+    let result = render_html_chrome(ctx, html_data);
     assert!(result.is_ok(), "HTML generation failed");
 
     let img = result.unwrap();
@@ -92,6 +92,6 @@ fn test_render_html_chrome(#[case] html_data: &[u8]) {
 #[rstest]
 #[case(RANDOM_DATA)] // non-utf-8
 fn test_render_html_chrome_invalid(#[case] html_data: &[u8]) {
-    let result = render_html_chrome(html_data);
+    let result = render_html_chrome(ctx, html_data);
     assert!(result.is_err(), "HTML generation should fail");
 }

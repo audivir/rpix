@@ -14,7 +14,7 @@ jobs:
     name: Build multi-arch libheif cross image
     runs-on: ubuntu-latest
     outputs:
-      image: ghcr.io/${{ github.repository_owner }}/cross-libheif:latest
+      image: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}-cross:latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -33,8 +33,8 @@ jobs:
         run: |
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
-            -t ghcr.io/${{ github.repository_owner }}/cross-libheif:latest \
-            -f Dockerfile.cross-libheif \
+            -t ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}-cross:latest \
+            -f Dockerfile.${{ matrix.name }} \
             --push .
 
   build:

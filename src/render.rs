@@ -1,15 +1,16 @@
 use anyhow::{Context, Result};
 use image::imageops::FilterType;
-use image::{DynamicImage, GenericImage, GenericImageView, Rgba, RgbaImage};
-use std::io::Write;
+use image::{DynamicImage, GenericImage, GenericImageView, ImageReader, Rgba, RgbaImage};
+use libheif_rs::integration::image::register_all_decoding_hooks;
+use std::io::{Cursor, Write};
 use std::process::{Command, Stdio};
 
-use crate::{calculate_dimensions, kv_project_dirs, CacheMode, Plugin, ResizeMode};
+use crate::{CacheMode, Plugin, ResizeMode, calculate_dimensions, kv_project_dirs};
 
 use pdfium_render::prelude::{PdfRenderConfig, Pdfium};
 
 use crate::{InputType, KvContext};
-use base64::{engine::general_purpose, Engine as _};
+use base64::{Engine as _, engine::general_purpose};
 use std::path::PathBuf;
 
 use headless_chrome::protocol::cdp::Page::CaptureScreenshotFormatOption;
@@ -46,18 +47,23 @@ pub fn add_background(img: &DynamicImage, color: &Rgba<u8>) -> DynamicImage {
     DynamicImage::ImageRgba8(bg)
 }
 
-pub fn render_image(ctx: &KvContext, img: DynamicImage) -> Result<DynamicImage> {
+pub fn render_image(ctx: &KvContext, data: &[u8]) -> Result<DynamicImage> {
+    register_all_decoding_hooks();
+    let mut img = ImageReader::new(Cursor::new(&data))
+        .with_guessed_format()
+        .context("Failed to guess image format")?
+        .decode()
+        .context("Failed to decode image data")?;
     let (w, h) = calculate_dimensions(img.dimensions(), ctx.resize_mode, ctx.term_size);
-    let mut final_img = img;
 
-    if w != 0 && h != 0 && (w != final_img.width() || h != final_img.height()) {
-        final_img = final_img.resize_exact(w, h, FilterType::Triangle);
+    if w != 0 && h != 0 && (w != img.width() || h != img.height()) {
+        img = img.resize_exact(w, h, FilterType::Triangle);
     }
 
     if let Some(color) = ctx.background_color {
-        final_img = add_background(&final_img, &color);
+        img = add_background(&img, &color);
     }
-    Ok(final_img)
+    Ok(img)
 }
 
 pub fn render_svg(ctx: &KvContext, data: &[u8]) -> Result<DynamicImage> {
@@ -169,8 +175,8 @@ pub fn render_pdf(ctx: &KvContext, data: &[u8]) -> Result<DynamicImage> {
         combined.copy_from(&img, 0, current_y)?;
         current_y += img.height();
     }
-
-    render_image(ctx, DynamicImage::ImageRgba8(combined))
+    let data = combined.as_raw();
+    render_image(ctx, data)
 }
 
 fn is_url(s: &[u8]) -> bool {
@@ -214,8 +220,7 @@ pub fn render_html_chrome(ctx: &KvContext, data: &[u8]) -> Result<DynamicImage> 
     tab.navigate_to(&url)?;
     tab.wait_for_element("body")?;
     let png_data = tab.capture_screenshot(CaptureScreenshotFormatOption::Png, None, None, true)?;
-    let img = image::load_from_memory(&png_data)?;
-    render_image(ctx, img)
+    render_image(ctx, &png_data)
 }
 
 #[cfg(target_os = "windows")]
@@ -378,10 +383,6 @@ pub fn render_plugin(ctx: &KvContext, data: &[u8], plugin: &Plugin) -> Result<Dy
         InputType::Svg => render_svg(ctx, &output_data),
         InputType::Pdf => render_pdf(ctx, &output_data),
         InputType::Html => render_html_chrome(ctx, &output_data),
-        _ => {
-            let img = image::load_from_memory(&output_data)
-                .context("Failed to decode plugin output as image")?;
-            render_image(ctx, img)
-        }
+        _ => Ok(render_image(ctx, &output_data).context("Failed to decode plugin output as image")?),
     }
 }

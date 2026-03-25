@@ -273,8 +273,7 @@ pub fn load_data(ctx: &KvContext, data: &[u8], extension: &str) -> Result<LoadRe
     }
 
     if ctx.input_type == InputType::Image {
-        let img = image::load_from_memory(data).context("Failed to load image")?;
-        return Ok(LoadResult::Image(render_image(ctx, img)?));
+        return Ok(LoadResult::Image(render_image(ctx, data)?));
     }
 
     if ctx.input_type == InputType::Svg
@@ -302,8 +301,8 @@ pub fn load_data(ctx: &KvContext, data: &[u8], extension: &str) -> Result<LoadRe
     }
 
     // fallback for InputType::Auto
-    match image::load_from_memory(data) {
-        Ok(img) => Ok(LoadResult::Image(render_image(ctx, img)?)),
+    match render_image(ctx, data) {
+        Ok(img) => Ok(LoadResult::Image(img)),
         Err(err) => {
             // check if it's a valid UTF-8 string that points to a file path
             if let Ok(text) = std::str::from_utf8(data) {

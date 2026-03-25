@@ -4,7 +4,7 @@ use rstest::rstest;
 use std::io::Cursor;
 
 const NO_FILES_MSG: &str = "Error: No input files provided and no data piped to stdin.\n";
-const SVG_DATA: &[u8] = include_bytes!("../fixtures/test.svg");
+const SVG_DATA: &[u8] = include_bytes!("../tests/fixtures/test.svg");
 
 // dummy config
 fn default_conf() -> Config {

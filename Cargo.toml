@@ -1,6 +1,6 @@
 [package]
 name = "kv"
-version = "0.2.5"
+version = "0.2.6"
 edition = "2024"
 
 [dependencies]
@@ -20,6 +20,9 @@ rayon = "1.11"
 serde = { version = "1.0", features = ["derive"] }
 toml = "1.0"
 shell-words = "1.1"
+
+# heic
+libheif-rs = { version = "2.6", default-features = false, features = ["v1_17", "image"] }
 
 # svg
 resvg = { version = "0.46" }

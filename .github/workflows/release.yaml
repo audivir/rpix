@@ -60,6 +60,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install libheif on macOS
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake nasm git x265 libde265 pkg-config
+          git clone https://github.com/strukturag/libheif.git /tmp/libheif
+          cd /tmp/libheif
+          git checkout v1.17.0
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make -j$(sysctl -n hw.logicalcpu)
+          sudo make install
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
         with:

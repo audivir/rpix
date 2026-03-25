@@ -11,10 +11,10 @@ permissions:
 
 jobs:
   build-cross-image:
-    name: Build Cross Docker Image
+    name: Build multi-arch libheif cross image
     runs-on: ubuntu-latest
     outputs:
-      image: ghcr.io/${{ github.repository_owner }}/cross-libheif:x86_64-latest
+      image: ghcr.io/${{ github.repository_owner }}/cross-libheif:latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,10 +26,16 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Build Docker image with libheif >=1.17
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build and push multi-arch Docker image
         run: |
-          docker build -t ghcr.io/${{ github.repository_owner }}/cross-libheif:x86_64-latest -f Dockerfile.cross-libheif .
-          docker push ghcr.io/${{ github.repository_owner }}/cross-libheif:x86_64-latest
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            -t ghcr.io/${{ github.repository_owner }}/cross-libheif:latest \
+            -f Dockerfile.cross-libheif \
+            --push .
 
   build:
     name: Build ${{ matrix.name }}

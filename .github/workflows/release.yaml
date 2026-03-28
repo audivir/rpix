@@ -18,7 +18,9 @@ jobs:
       matrix:
         include:
           - name: kv-linux-arm64
+            platform: linux/arm64
           - name: kv-linux-amd64
+            platform: linux/amd64
     outputs:
       image: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}-cross:latest
     steps:
@@ -38,7 +40,7 @@ jobs:
       - name: Build and push multi-arch Docker image
         run: |
           docker buildx build \
-            --platform linux/amd64,linux/arm64 \
+            --platform ${{ matrix.platform }} \
             -t ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}-cross:latest \
             -f Dockerfile.${{ matrix.name }} \
             --push .

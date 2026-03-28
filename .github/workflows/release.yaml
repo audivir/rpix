@@ -11,8 +11,14 @@ permissions:
 
 jobs:
   build-cross-image:
-    name: Build multi-arch libheif cross image
+    name: Build ${{ matrix.name }} cross image
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: kv-linux-arm64
+          - name: kv-linux-amd64
     outputs:
       image: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}-cross:latest
     steps:
